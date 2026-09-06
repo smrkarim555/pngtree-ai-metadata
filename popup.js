@@ -143,25 +143,6 @@ async function updateAuthUI() {
   }
 }
 
-// Quick 1-Click Admin Login
-if ($("quickAdminLoginBtn")) {
-  $("quickAdminLoginBtn").addEventListener("click", async () => {
-    const btn = $("quickAdminLoginBtn");
-    const orig = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = "<span>⏳ Logging in as Admin...</span>";
-    try {
-      await AuthService.loginWithEmail(APP_CONFIG.ADMIN_EMAIL || "smrkarim555@gmail.com");
-      await updateAuthUI();
-    } catch (err) {
-      alert("এডমিন লগইন এরর: " + err.message);
-    } finally {
-      btn.disabled = false;
-      btn.innerHTML = orig;
-    }
-  });
-}
-
 // User Google Sign-In Handler
 $("googleSignInBtn").addEventListener("click", async () => {
   const emailInput = $("loginEmailInput");
