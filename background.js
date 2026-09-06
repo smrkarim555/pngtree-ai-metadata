@@ -266,3 +266,35 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return true;
   }
 });
+
+// ================= Periodic GitHub Auto-Update Checking =================
+async function checkAndNotifyUpdates() {
+  try {
+    const update = await AuthService.checkGitHubUpdate();
+    if (update && update.hasUpdate) {
+      chrome.action.setBadgeText({ text: "UP" });
+      chrome.action.setBadgeBackgroundColor({ color: "#16a34a" });
+    } else {
+      chrome.action.setBadgeText({ text: "" });
+    }
+  } catch (err) {
+    console.warn("Background update check failed:", err);
+  }
+}
+
+try {
+  chrome.alarms.create("checkGitHubUpdatesAlarm", { periodInMinutes: 30 });
+  chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === "checkGitHubUpdatesAlarm") {
+      checkAndNotifyUpdates();
+    }
+  });
+} catch (e) {}
+
+chrome.runtime.onInstalled.addListener(() => {
+  checkAndNotifyUpdates();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  checkAndNotifyUpdates();
+});

@@ -315,20 +315,84 @@ $("adminRefreshBtn").addEventListener("click", loadAdminUsers);
 $("adminSearchInput").addEventListener("input", () => renderAdminUsers(allUsersCache));
 
 // ================= GitHub Auto-Update Check =================
-async function checkUpdateBanner() {
+async function checkUpdateBanner(isManual = false) {
+  const checkBtn = $("manualCheckUpdateBtn");
+  const checkIcon = $("checkUpdateIcon");
+  const checkText = $("checkUpdateText");
+  const statusMsg = $("updateStatusMsg");
+  const banner = $("updateBanner");
+  const verText = $("updateVersion");
+  const link = $("updateLink");
+  const commitMsg = $("updateCommitMsg");
+  const badge = $("currentVersionBadge");
+
+  const currentVer = chrome.runtime.getManifest().version;
+  if (badge) badge.textContent = `v${currentVer}`;
+
+  if (isManual && checkBtn) {
+    checkBtn.disabled = true;
+    checkText.textContent = "Checking GitHub...";
+    if (checkIcon) checkIcon.textContent = "⏳";
+  }
+
   try {
     const update = await AuthService.checkGitHubUpdate();
     if (update && update.hasUpdate) {
-      const banner = $("updateBanner");
-      const verText = $("updateVersion");
-      const link = $("updateLink");
-      verText.textContent = `v${update.latestVersion}`;
-      if (update.releaseUrl) link.href = update.releaseUrl;
+      if (update.latestVersion && update.latestVersion !== update.currentVersion) {
+        verText.textContent = `v${update.latestVersion}`;
+      } else if (update.latestCommit && update.latestCommit.sha) {
+        verText.textContent = `Git: ${update.latestCommit.sha}`;
+      } else {
+        verText.textContent = "Latest";
+      }
+
+      if (update.latestCommit && update.latestCommit.message) {
+        commitMsg.textContent = `"${update.latestCommit.message}"`;
+        commitMsg.style.display = "block";
+      }
+
+      if (update.repoUrl) link.href = update.repoUrl;
       banner.style.display = "flex";
+
+      if (statusMsg) {
+        statusMsg.style.display = "block";
+        statusMsg.style.background = "#fef3c7";
+        statusMsg.style.color = "#92400e";
+        statusMsg.innerHTML = "🚀 <strong>Update available!</strong> Run <code>update.bat</code> inside extension folder, or download .zip.";
+      }
+    } else {
+      banner.style.display = "none";
+      if (isManual && statusMsg) {
+        statusMsg.style.display = "block";
+        statusMsg.style.background = "#dcfce7";
+        statusMsg.style.color = "#15803d";
+        statusMsg.innerHTML = "✅ You are running the latest version!";
+        setTimeout(() => {
+          if (statusMsg) statusMsg.style.display = "none";
+        }, 3500);
+      }
     }
   } catch (e) {
     console.warn("Update check failed:", e);
+    if (isManual && statusMsg) {
+      statusMsg.style.display = "block";
+      statusMsg.style.background = "#fee2e2";
+      statusMsg.style.color = "#b91c1c";
+      statusMsg.innerHTML = `⚠️ Check failed: ${e.message}`;
+    }
+  } finally {
+    if (isManual && checkBtn) {
+      checkBtn.disabled = false;
+      checkText.textContent = "Check for Updates";
+      if (checkIcon) checkIcon.textContent = "🔄";
+    }
   }
+}
+
+// Bind manual check button
+const manualBtn = $("manualCheckUpdateBtn");
+if (manualBtn) {
+  manualBtn.addEventListener("click", () => checkUpdateBanner(true));
 }
 
 // ================= Load Saved Settings =================

@@ -8,10 +8,10 @@ echo.
 
 if exist ".git" (
     echo [1/2] Updating repository via Git...
-    git pull
+    git pull origin main
 ) else (
     echo [1/2] Downloading latest update from GitHub...
-    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri 'https://github.com/smrkarim555/pngtree-ai-metadata/archive/refs/heads/main.zip' -OutFile 'update.zip'; Expand-Archive -Path 'update.zip' -DestinationPath 'update_temp' -Force; Copy-Item -Path 'update_temp\pngtree-ai-metadata-main\*' -Destination '.' -Recurse -Force; Remove-Item 'update_temp', 'update.zip' -Recurse -Force; Write-Host 'Successfully updated files!' -ForegroundColor Green } catch { Write-Host 'Download error: ' $_.Exception.Message -ForegroundColor Red }"
+    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Write-Host 'Downloading update.zip...'; Invoke-WebRequest -Uri 'https://github.com/smrkarim555/pngtree-ai-metadata/archive/refs/heads/main.zip' -OutFile 'update.zip'; Write-Host 'Extracting files...'; Expand-Archive -Path 'update.zip' -DestinationPath 'update_temp' -Force; Get-ChildItem 'update_temp' | Select-Object -First 1 | ForEach-Object { Copy-Item -Path ($_.FullName + '\*') -Destination '.' -Recurse -Force }; Remove-Item 'update_temp', 'update.zip' -Recurse -Force; Write-Host 'Successfully updated all files from GitHub!' -ForegroundColor Green } catch { Write-Host 'Download error: ' $_.Exception.Message -ForegroundColor Red }"
 )
 
 echo.
