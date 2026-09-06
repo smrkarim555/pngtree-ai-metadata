@@ -145,19 +145,41 @@ async function updateAuthUI() {
 
 // Google Sign-In Handler
 $("googleSignInBtn").addEventListener("click", async () => {
-  const btn = $("googleSignInBtn");
-  const originalText = btn.innerHTML;
-  btn.disabled = true;
-  btn.innerText = "⏳ Logging in...";
+  const emailInput = $("loginEmailInput");
+  const email = emailInput ? emailInput.value.trim() : "";
 
-  try {
-    await AuthService.signInWithGoogle();
-    await updateAuthUI();
-  } catch (err) {
-    alert("লগইন এরর: " + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = originalText;
+  if (email) {
+    const btn = $("googleSignInBtn");
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerText = "⏳ Logging in...";
+    try {
+      await AuthService.loginWithEmail(email);
+      await updateAuthUI();
+    } catch (err) {
+      alert("লগইন এরর: " + err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+    }
+    return;
+  }
+
+  // If no email typed, open Google web login page
+  chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
+});
+
+if ($("openWebLoginLink")) {
+  $("openWebLoginLink").addEventListener("click", (e) => {
+    e.preventDefault();
+    chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
+  });
+}
+
+// Auto update UI when storage changes (e.g. login from tab)
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "local" && changes.currentUser) {
+    updateAuthUI();
   }
 });
 

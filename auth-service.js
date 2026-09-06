@@ -31,6 +31,24 @@ const AuthService = {
     await chrome.storage.local.set({ currentUser: userData });
   },
 
+  // Instant Gmail login
+  async loginWithEmail(email) {
+    const cleanEmail = (email || "").trim().toLowerCase();
+    if (!cleanEmail || !cleanEmail.includes("@")) {
+      throw new Error("সঠিক Gmail ঠিকানা লিখুন (যেমন: user@gmail.com)।");
+    }
+
+    const mockName = cleanEmail.split("@")[0];
+    const profile = {
+      sub: "user_" + Math.random().toString(36).substring(7),
+      email: cleanEmail,
+      name: mockName.charAt(0).toUpperCase() + mockName.slice(1),
+      picture: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(cleanEmail)}`
+    };
+
+    return await this.handleUserRecord(profile);
+  },
+
   // Sign in with Google (Opens real Google Accounts login page)
   async signInWithGoogle() {
     return new Promise(async (resolve, reject) => {

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Google Sign In - Pngtree AI Metadata</title>
+  <style>
+    :root {
+      --primary: #16a34a;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      box-shadow: 0 10px 30px rgba(22, 101, 52, 0.12);
+      border: 1px solid #dcfce7;
+      padding: 36px 32px;
+      width: 100%;
+      max-width: 380px;
+      text-align: center;
+    }
+    .logo {
+      font-size: 42px;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 20px;
+      margin: 0 0 6px;
+      color: var(--text);
+    }
+    p {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin: 0 0 24px;
+      line-height: 1.5;
+    }
+    .google-btn {
+      width: 100%;
+      padding: 12px 18px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      background: #ffffff;
+      color: #1e293b;
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+      transition: all 0.2s ease;
+    }
+    .google-btn:hover {
+      background: #f8fafc;
+      border-color: #94a3b8;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .status-msg {
+      margin-top: 18px;
+      font-size: 13px;
+      font-weight: 600;
+      display: none;
+    }
+    .status-msg.success {
+      color: #15803d;
+      display: block;
+    }
+    .status-msg.error {
+      color: #dc2626;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">🌿</div>
+    <h1>Pngtree AI Metadata</h1>
+    <p>Sign in with your Google account to activate or access your 1-month subscription.</p>
+
+    <button id="loginBtn" class="google-btn">
+      <svg width="20" height="20" viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+      </svg>
+      <span>Sign in with Google</span>
+    </button>
+
+    <div id="status" class="status-msg"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getAuth, signInWithPopup, GoogleAuthProvider } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBZMNCmA0sCiR7G0OEruoIrqK1byIDTS7U",
+      authDomain: "pngtree-meta.firebaseapp.com",
+      databaseURL: "https://pngtree-meta-default-rtdb.firebaseio.com",
+      projectId: "pngtree-meta",
+      storageBucket: "pngtree-meta.firebasestorage.app",
+      messagingSenderId: "916776251769",
+      appId: "1:916776251769:web:2328c636fa8dc045763fa8"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
+
+    const btn = document.getElementById("loginBtn");
+    const status = document.getElementById("status");
+
+    btn.addEventListener("click", async () => {
+      btn.disabled = true;
+      btn.innerText = "Connecting to Google...";
+      status.className = "status-msg";
+
+      try {
+        const result = await signInWithPopup(auth, provider);
+        const u = result.user;
+        const email = (u.email || "").toLowerCase();
+        const isAdmin = email === "smrkarim555@gmail.com";
+        const sanitizedKey = email.replace(/\./g, ",");
+
+        // Save to Firebase Realtime Database
+        const dbUrl = `https://pngtree-meta-default-rtdb.firebaseio.com/users/${sanitizedKey}.json`;
+        
+        // Fetch existing
+        const exRes = await fetch(dbUrl);
+        const existing = await exRes.json();
+
+        let userData;
+        if (existing) {
+          userData = {
+            ...existing,
+            name: u.displayName || existing.name,
+            picture: u.photoURL || existing.picture,
+            lastLoginAt: Date.now()
+          };
+          if (isAdmin) {
+            userData.role = "admin";
+            userData.status = "active";
+            userData.subscriptionExpiresAt = Date.now() + 3650 * 86400000;
+          }
+        } else {
+          userData = {
+            email: email,
+            name: u.displayName || "User",
+            picture: u.photoURL || "",
+            role: isAdmin ? "admin" : "user",
+            status: isAdmin ? "active" : "pending",
+            activatedAt: isAdmin ? Date.now() : null,
+            subscriptionExpiresAt: isAdmin ? Date.now() + 3650 * 86400000 : null,
+            createdAt: Date.now(),
+            lastLoginAt: Date.now()
+          };
+        }
+
+        await fetch(dbUrl, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(userData)
+        });
+
+        // Store in localStorage for extension bridge
+        localStorage.setItem("pngtree_currentUser", JSON.stringify(userData));
+
+        status.className = "status-msg success";
+        status.innerHTML = `✅ স্বাগতম, ${u.displayName || u.email}!<br>লগইন সফল হয়েছে। আপনি এখন এই ট্যাবটি বন্ধ করতে পারেন।`;
+        btn.style.display = "none";
+
+        // Try closing after 2 seconds
+        setTimeout(() => {
+          window.close();
+        }, 2200);
+
+      } catch (err) {
+        status.className = "status-msg error";
+        status.innerText = "লগইন এরর: " + (err.message || err);
+        btn.disabled = false;
+        btn.innerHTML = "Sign in with Google";
+      }
+    });
+  </script>
+</body>
+</html>
