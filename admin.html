@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Admin Panel - Pngtree AI Metadata</title>
+  <style>
+    :root {
+      --primary: #16a34a;
+      --primary-dark: #15803d;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --radius: 14px;
+      --shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 14px;
+      max-width: 500px;
+      margin: 0 auto;
+      min-height: 100vh;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ---------- Header ---------- */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding: 10px 4px;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #16a34a, #22c55e);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 4px 10px rgba(22, 163, 74, 0.3);
+    }
+    .title h1 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .title p {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .refresh-btn {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      box-shadow: var(--shadow);
+    }
+    .refresh-btn:active { transform: scale(0.96); }
+
+    /* ---------- PIN Auth View ---------- */
+    #authView {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px 20px;
+      text-align: center;
+      box-shadow: var(--shadow);
+      margin-top: 40px;
+    }
+    .pin-input {
+      width: 100%;
+      padding: 12px;
+      font-size: 18px;
+      text-align: center;
+      letter-spacing: 4px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      margin: 16px 0;
+      outline: none;
+    }
+    .pin-input:focus { border-color: var(--primary); }
+    .login-btn {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #16a34a, #22c55e);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    /* ---------- Admin Dashboard View ---------- */
+    #dashboardView { display: none; }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .stat-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+    .stat-val { font-size: 18px; font-weight: 800; color: var(--primary); }
+    .stat-label { font-size: 10.5px; color: var(--text-muted); font-weight: 600; }
+
+    /* Search and Filters */
+    .search-box {
+      width: 100%;
+      padding: 11px 14px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 13px;
+      margin-bottom: 10px;
+      outline: none;
+      box-shadow: var(--shadow);
+    }
+    .search-box:focus { border-color: var(--primary); }
+
+    .filter-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+      overflow-x: auto;
+    }
+    .filter-tab {
+      padding: 6px 12px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    .filter-tab.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    /* User Cards List */
+    .user-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-bottom: 40px;
+    }
+    .user-card {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: var(--shadow);
+      position: relative;
+    }
+    .user-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .user-email {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      max-width: 260px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .badge {
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .badge-active { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+    .badge-pending { background: #fef9c3; color: #854d0e; border: 1px solid #fde047; }
+    .badge-expired { background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; }
+    .badge-blocked { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+    .badge-admin { background: #e0e7ff; color: #4338ca; border: 1px solid #a5b4fc; }
+
+    .user-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      line-height: 1.4;
+    }
+
+    .action-row {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr;
+      gap: 6px;
+    }
+    .act-btn {
+      padding: 9px 4px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    .act-btn:active { transform: scale(0.97); }
+    .btn-act { background: #16a34a; color: #fff; }
+    .btn-ext { background: #0284c7; color: #fff; }
+    .btn-blk { background: #ef4444; color: #fff; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #0f172a;
+      color: #fff;
+      padding: 10px 18px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+      transition: transform 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+      z-index: 9999;
+      white-space: nowrap;
+    }
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">🌿</div>
+      <div class="title">
+        <h1>Pngtree Admin</h1>
+        <p>Mobile User Control</p>
+      </div>
+    </div>
+    <button id="refreshBtn" class="refresh-btn" type="button">🔄 Refresh</button>
+  </div>
+
+  <!-- PIN Protection Screen -->
+  <div id="authView">
+    <div style="font-size: 36px; margin-bottom: 8px;">🔐</div>
+    <h2>এডমিন ভেরিফিকেশন</h2>
+    <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
+      মোবাইল থেকে ইউজার ম্যানেজ করতে আপনার Admin PIN দিন
+    </p>
+    <input id="pinInput" class="pin-input" type="password" maxlength="6" placeholder="••••" autocomplete="off" />
+    <button id="pinSubmitBtn" class="login-btn" type="button">লগইন করুন</button>
+    <p style="font-size: 10.5px; color: #94a3b8; margin-top: 10px;">ডিফল্ট PIN: 5555</p>
+  </div>
+
+  <!-- Mobile Dashboard Screen -->
+  <div id="dashboardView">
+
+    <!-- Stats -->
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-val" id="totalCount">0</div>
+        <div class="stat-label">মোট ইউজার</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" style="color: #854d0e;" id="pendingCount">0</div>
+        <div class="stat-label">পেন্ডিং</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" style="color: #15803d;" id="activeCount">0</div>
+        <div class="stat-label">এক্টিভ</div>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <input id="searchBox" class="search-box" type="text" placeholder="🔍 ইউজার বা ইমেইল খুঁজুন..." />
+
+    <!-- Filter Tabs -->
+    <div class="filter-tabs">
+      <div class="filter-tab active" data-filter="all">সকল ইউজার</div>
+      <div class="filter-tab" data-filter="pending">⏳ পেন্ডিং</div>
+      <div class="filter-tab" data-filter="active">✅ এক্টিভ</div>
+      <div class="filter-tab" data-filter="expired">❌ মেয়াদোত্তীর্ণ</div>
+    </div>
+
+    <!-- User List -->
+    <div class="user-list" id="userListContainer">
+      <div style="text-align: center; color: #888; padding: 20px;">লোড হচ্ছে...</div>
+    </div>
+
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">কার্যকর হয়েছে!</div>
+
+  <script>
+    const FIREBASE_DB_URL = "https://pngtree-meta-default-rtdb.firebaseio.com";
+    const ADMIN_PIN = "5555"; // আপনি চাইলে এখানে যেকোনো গোপন PIN দিতে পারেন
+    const ADMIN_EMAIL = "smrkarim555@gmail.com";
+
+    const authView = document.getElementById("authView");
+    const dashboardView = document.getElementById("dashboardView");
+    const pinInput = document.getElementById("pinInput");
+    const pinSubmitBtn = document.getElementById("pinSubmitBtn");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const userListContainer = document.getElementById("userListContainer");
+    const searchBox = document.getElementById("searchBox");
+    const toast = document.getElementById("toast");
+
+    let allUsers = [];
+    let currentFilter = "all";
+
+    function showToast(text) {
+      toast.textContent = text;
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 2400);
+    }
+
+    // Check saved auth
+    if (localStorage.getItem("admin_authenticated") === "true") {
+      authView.style.display = "none";
+      dashboardView.style.display = "block";
+      loadUsers();
+    }
+
+    pinSubmitBtn.addEventListener("click", () => {
+      if (pinInput.value.trim() === ADMIN_PIN) {
+        localStorage.setItem("admin_authenticated", "true");
+        authView.style.display = "none";
+        dashboardView.style.display = "block";
+        loadUsers();
+        showToast("স্বাগতম এডমিন!");
+      } else {
+        alert("ভুল PIN! সঠিক PIN দিন। (ডিফল্ট: 5555)");
+        pinInput.value = "";
+        pinInput.focus();
+      }
+    });
+
+    pinInput.addEventListener("keyup", (e) => {
+      if (e.key === "Enter") pinSubmitBtn.click();
+    });
+
+    async function loadUsers() {
+      userListContainer.innerHTML = "<div style='text-align: center; color: #888; padding: 20px;'>ডাটাবেজ থেকে লোড হচ্ছে...</div>";
+      try {
+        const res = await fetch(`${FIREBASE_DB_URL}/users.json`);
+        const data = await res.json() || {};
+        allUsers = Object.values(data).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        updateStats();
+        renderUsers();
+      } catch (err) {
+        userListContainer.innerHTML = `<div style='color: red; text-align: center; padding: 20px;'>এরর: ${err.message}</div>`;
+      }
+    }
+
+    function updateStats() {
+      const total = allUsers.length;
+      const pending = allUsers.filter(u => u.role !== "admin" && (u.status === "pending" || !u.subscriptionExpiresAt)).length;
+      const active = allUsers.filter(u => u.status === "active" && u.subscriptionExpiresAt > Date.now()).length;
+
+      document.getElementById("totalCount").textContent = total;
+      document.getElementById("pendingCount").textContent = pending;
+      document.getElementById("activeCount").textContent = active;
+    }
+
+    function renderUsers() {
+      userListContainer.innerHTML = "";
+      const q = (searchBox.value || "").trim().toLowerCase();
+
+      const filtered = allUsers.filter(u => {
+        const matchesQuery = (u.email || "").toLowerCase().includes(q) || (u.name || "").toLowerCase().includes(q);
+        if (!matchesQuery) return false;
+
+        const isAct = u.status === "active" && u.subscriptionExpiresAt > Date.now();
+        const isExp = u.subscriptionExpiresAt && u.subscriptionExpiresAt <= Date.now();
+        const isPend = u.status === "pending" || !u.subscriptionExpiresAt;
+
+        if (currentFilter === "active") return isAct;
+        if (currentFilter === "expired") return isExp;
+        if (currentFilter === "pending") return isPend && u.role !== "admin";
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        userListContainer.innerHTML = "<div style='text-align: center; color: #888; padding: 20px;'>কোনো ইউজার পাওয়া যায়নি।</div>";
+        return;
+      }
+
+      filtered.forEach(u => {
+        const card = document.createElement("div");
+        card.className = "user-card";
+
+        let badgeClass = "badge-pending";
+        let badgeText = "Pending";
+        let daysInfo = "";
+
+        if (u.role === "admin" || u.email === ADMIN_EMAIL) {
+          badgeClass = "badge-admin";
+          badgeText = "Admin 👑";
+          daysInfo = "আনলিমিটেড এক্সেস";
+        } else if (u.status === "blocked") {
+          badgeClass = "badge-blocked";
+          badgeText = "Blocked";
+        } else if (u.status === "active" && u.subscriptionExpiresAt > Date.now()) {
+          badgeClass = "badge-active";
+          const days = Math.max(1, Math.ceil((u.subscriptionExpiresAt - Date.now()) / (1000 * 60 * 60 * 24)));
+          badgeText = `Active (${days} দিন)`;
+          daysInfo = `মেয়াদ শেষ: ${new Date(u.subscriptionExpiresAt).toLocaleDateString()}`;
+        } else if (u.subscriptionExpiresAt && u.subscriptionExpiresAt <= Date.now()) {
+          badgeClass = "badge-expired";
+          badgeText = "Expired";
+          daysInfo = `মেয়াদ শেষ হয়েছে: ${new Date(u.subscriptionExpiresAt).toLocaleDateString()}`;
+        } else {
+          badgeClass = "badge-pending";
+          badgeText = "Pending ⏳";
+          daysInfo = "অনুমোদনের অপেক্ষায় রয়েছে";
+        }
+
+        const isUserAdmin = u.role === "admin" || u.email === ADMIN_EMAIL;
+
+        card.innerHTML = `
+          <div class="user-card-header">
+            <span class="user-email" title="${u.email}">${u.email}</span>
+            <span class="badge ${badgeClass}">${badgeText}</span>
+          </div>
+          <div class="user-meta">
+            <span>নাম: <strong>${u.name || "N/A"}</strong></span> • <span>${daysInfo}</span>
+          </div>
+          ${isUserAdmin ? '' : `
+            <div class="action-row">
+              <button class="act-btn btn-act" data-email="${u.email}">⚡ 1 মাস Active</button>
+              <button class="act-btn btn-ext" data-email="${u.email}">➕ +30 দিন</button>
+              <button class="act-btn btn-blk" data-email="${u.email}">⛔ Block</button>
+            </div>
+          `}
+        `;
+
+        // Action bindings
+        const actBtn = card.querySelector(".btn-act");
+        if (actBtn) {
+          actBtn.addEventListener("click", async () => {
+            actBtn.disabled = true;
+            actBtn.textContent = "⏳...";
+            await updateUserSubscription(u.email, 30);
+            showToast(`✅ ${u.email} ১ মাসের জন্য এক্টিভ হয়েছে!`);
+            await loadUsers();
+          });
+        }
+
+        const extBtn = card.querySelector(".btn-ext");
+        if (extBtn) {
+          extBtn.addEventListener("click", async () => {
+            extBtn.disabled = true;
+            extBtn.textContent = "⏳...";
+            await updateUserSubscription(u.email, 30);
+            showToast(`✅ ${u.email}-এর মেয়াদ আরও ৩০ দিন বাড়ানো হলো!`);
+            await loadUsers();
+          });
+        }
+
+        const blkBtn = card.querySelector(".btn-blk");
+        if (blkBtn) {
+          blkBtn.addEventListener("click", async () => {
+            if (confirm(`${u.email}-কে সাময়িকভাবে ব্লক করতে চান?`)) {
+              blkBtn.disabled = true;
+              blkBtn.textContent = "⏳...";
+              await blockUser(u.email);
+              showToast(`⛔ ${u.email} ব্লক করা হয়েছে!`);
+              await loadUsers();
+            }
+          });
+        }
+
+        userListContainer.appendChild(card);
+      });
+    }
+
+    async function updateUserSubscription(email, days) {
+      const sanitizedKey = email.toLowerCase().replace(/\./g, ",");
+      const url = `${FIREBASE_DB_URL}/users/${sanitizedKey}.json`;
+
+      const exRes = await fetch(url);
+      const user = await exRes.json() || { email, createdAt: Date.now() };
+
+      const durationMs = days * 24 * 60 * 60 * 1000;
+      const baseTime = user.subscriptionExpiresAt && user.subscriptionExpiresAt > Date.now()
+        ? user.subscriptionExpiresAt
+        : Date.now();
+
+      user.status = "active";
+      user.activatedAt = Date.now();
+      user.subscriptionExpiresAt = baseTime + durationMs;
+
+      await fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(user)
+      });
+    }
+
+    async function blockUser(email) {
+      const sanitizedKey = email.toLowerCase().replace(/\./g, ",");
+      const url = `${FIREBASE_DB_URL}/users/${sanitizedKey}.json`;
+      const exRes = await fetch(url);
+      const user = await exRes.json();
+      if (!user) return;
+
+      user.status = "blocked";
+      user.subscriptionExpiresAt = 0;
+
+      await fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(user)
+      });
+    }
+
+    // Tab Filters
+    document.querySelectorAll(".filter-tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".filter-tab").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+        currentFilter = tab.dataset.filter;
+        renderUsers();
+      });
+    });
+
+    searchBox.addEventListener("input", renderUsers);
+    refreshBtn.addEventListener("click", loadUsers);
+  </script>
+</body>
+</html>
