@@ -315,6 +315,8 @@ $("adminRefreshBtn").addEventListener("click", loadAdminUsers);
 $("adminSearchInput").addEventListener("input", () => renderAdminUsers(allUsersCache));
 
 // ================= GitHub Auto-Update Check =================
+let currentUpdateIdentifier = null;
+
 async function checkUpdateBanner(isManual = false) {
   const checkBtn = $("manualCheckUpdateBtn");
   const checkIcon = $("checkUpdateIcon");
@@ -322,7 +324,6 @@ async function checkUpdateBanner(isManual = false) {
   const statusMsg = $("updateStatusMsg");
   const banner = $("updateBanner");
   const verText = $("updateVersion");
-  const link = $("updateLink");
   const commitMsg = $("updateCommitMsg");
   const badge = $("currentVersionBadge");
 
@@ -338,27 +339,39 @@ async function checkUpdateBanner(isManual = false) {
   try {
     const update = await AuthService.checkGitHubUpdate();
     if (update && update.hasUpdate) {
+      const updateId = (update.latestCommit && update.latestCommit.sha) || update.latestVersion || "latest";
+      currentUpdateIdentifier = updateId;
+
+      // Check if user already dismissed this specific update notification
+      const saved = await chrome.storage.local.get(["dismissedUpdate"]);
+      const isDismissed = saved.dismissedUpdate === updateId;
+
       if (update.latestVersion && update.latestVersion !== update.currentVersion) {
-        verText.textContent = `v${update.latestVersion}`;
+        verText.textContent = `v${update.latestVersion} Available!`;
       } else if (update.latestCommit && update.latestCommit.sha) {
-        verText.textContent = `Git: ${update.latestCommit.sha}`;
+        verText.textContent = `Git: ${update.latestCommit.sha} Update!`;
       } else {
-        verText.textContent = "Latest";
+        verText.textContent = "New Update Available!";
       }
 
       if (update.latestCommit && update.latestCommit.message) {
         commitMsg.textContent = `"${update.latestCommit.message}"`;
         commitMsg.style.display = "block";
+      } else {
+        commitMsg.textContent = "Click Update to download latest version.";
+        commitMsg.style.display = "block";
       }
 
-      if (update.repoUrl) link.href = update.repoUrl;
-      banner.style.display = "flex";
+      // Show banner if not dismissed or if user clicked manual check
+      if (isManual || !isDismissed) {
+        banner.style.display = "flex";
+      }
 
       if (statusMsg) {
         statusMsg.style.display = "block";
         statusMsg.style.background = "#fef3c7";
         statusMsg.style.color = "#92400e";
-        statusMsg.innerHTML = "🚀 <strong>Update available!</strong> Run <code>update.bat</code> inside extension folder, or download .zip.";
+        statusMsg.innerHTML = "🚀 <strong>Update available!</strong> Run <code>update.bat</code> inside extension folder, or click Update.";
       }
     } else {
       banner.style.display = "none";
@@ -387,6 +400,36 @@ async function checkUpdateBanner(isManual = false) {
       if (checkIcon) checkIcon.textContent = "🔄";
     }
   }
+}
+
+// Close button on update banner (Dismiss notification)
+const closeBannerBtn = $("closeUpdateBannerBtn");
+if (closeBannerBtn) {
+  closeBannerBtn.addEventListener("click", async () => {
+    $("updateBanner").style.display = "none";
+    if (currentUpdateIdentifier) {
+      await chrome.storage.local.set({ dismissedUpdate: currentUpdateIdentifier });
+    }
+    if (chrome.action && chrome.action.setBadgeText) {
+      chrome.action.setBadgeText({ text: "" });
+    }
+  });
+}
+
+// When Update/Download Zip is clicked, dismiss the banner
+const updateZipBtn = $("updateZipBtn");
+if (updateZipBtn) {
+  updateZipBtn.addEventListener("click", async () => {
+    if (currentUpdateIdentifier) {
+      await chrome.storage.local.set({ dismissedUpdate: currentUpdateIdentifier });
+    }
+    setTimeout(() => {
+      $("updateBanner").style.display = "none";
+      if (chrome.action && chrome.action.setBadgeText) {
+        chrome.action.setBadgeText({ text: "" });
+      }
+    }, 800);
+  });
 }
 
 // Bind manual check button

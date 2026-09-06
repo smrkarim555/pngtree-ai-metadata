@@ -85,33 +85,83 @@
     color: var(--text-secondary);
   }
 
-  /* ---------- Update Banner ---------- */
+  /* ---------- Update Banner (Notification Style) ---------- */
   .update-banner{
     display:none;
     align-items:center;
     justify-content:space-between;
     gap:8px;
-    background: linear-gradient(135deg, #fffbeb, #fef3c7);
-    border: 1px solid #fde68a;
+    background: #ffffff;
+    border: 1px solid #bbf7d0;
+    border-left: 4px solid #16a34a;
     border-radius: var(--radius-md);
-    padding: 8px 12px;
+    padding: 8px 10px;
     margin-bottom: 12px;
-    font-size: 11.5px;
-    color: #92400e;
-    box-shadow: 0 2px 6px rgba(217,119,6,0.12);
+    font-size: 11px;
+    color: var(--text-primary);
+    box-shadow: 0 4px 12px rgba(22,163,74,0.10);
+    animation: bannerFade 0.2s ease-out;
   }
-  .update-banner strong{ color: #b45309; }
-  .update-banner a{
-    background: #f59e0b;
-    color: #fff;
+  @keyframes bannerFade {
+    from { opacity: 0; transform: translateY(-3px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .update-banner .update-content{
+    flex: 1;
+    min-width: 0;
+    line-height: 1.35;
+  }
+  .update-banner .update-title{
+    font-weight: 700;
+    font-size: 11.5px;
+    color: #14532d;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .update-banner .update-desc{
+    font-size: 10px;
+    color: #64748b;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .update-banner .update-action-btn{
+    background: linear-gradient(135deg, #15803d, #22c55e);
+    color: #ffffff !important;
     text-decoration: none;
-    padding: 3px 8px;
+    padding: 5px 9px;
     border-radius: 6px;
     font-size: 10.5px;
     font-weight: 700;
     white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(22,163,74,0.25);
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
   }
-  .update-banner a:hover{ background: #d97706; }
+  .update-banner .update-action-btn:hover{
+    filter: brightness(1.08);
+  }
+  .update-banner .close-banner-btn{
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 14px;
+    cursor: pointer;
+    padding: 2px 5px;
+    margin-left: 2px;
+    border-radius: 4px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .update-banner .close-banner-btn:hover{
+    color: #1e293b;
+    background: #f1f5f9;
+  }
 
   /* ---------- Card ---------- */
   .card{
@@ -545,14 +595,18 @@
       </div>
     </div>
 
-    <!-- GitHub Auto-Update Banner -->
+    <!-- GitHub Auto-Update Notification Banner -->
     <div id="updateBanner" class="update-banner">
-      <div style="flex:1;">
-        <span>🚀 <strong id="updateVersion">v1.0.0</strong> update available!</span>
-        <div id="updateCommitMsg" style="font-size:10px; color:#78350f; margin-top:2px; display:none;"></div>
+      <div class="update-content">
+        <div class="update-title">
+          <span>🚀</span> <span id="updateVersion">New Update Available!</span>
+        </div>
+        <div id="updateCommitMsg" class="update-desc">Click Update to download latest version.</div>
       </div>
-      <a id="updateZipBtn" href="https://github.com/smrkarim555/pngtree-ai-metadata/archive/refs/heads/main.zip" target="_blank" style="background:#16a34a; color:#fff; text-decoration:none; padding:4px 8px; border-radius:6px; font-size:10.5px; font-weight:700; white-space:nowrap;">Download Zip ⬇️</a>
-      <a id="updateLink" href="https://github.com/smrkarim555/pngtree-ai-metadata" target="_blank">GitHub ↗</a>
+      <a id="updateZipBtn" class="update-action-btn" href="https://github.com/smrkarim555/pngtree-ai-metadata/archive/refs/heads/main.zip" target="_blank" title="Download latest update zip">
+        ⬇️ Update
+      </a>
+      <button id="closeUpdateBannerBtn" class="close-banner-btn" type="button" title="Close notification">✕</button>
     </div>
 
     <!-- User Authentication & 1-Month Subscription Card -->
