@@ -416,21 +416,7 @@ if (closeBannerBtn) {
   });
 }
 
-// When Update/Download Zip is clicked, dismiss the banner
-const updateZipBtn = $("updateZipBtn");
-if (updateZipBtn) {
-  updateZipBtn.addEventListener("click", async () => {
-    if (currentUpdateIdentifier) {
-      await chrome.storage.local.set({ dismissedUpdate: currentUpdateIdentifier });
-    }
-    setTimeout(() => {
-      $("updateBanner").style.display = "none";
-      if (chrome.action && chrome.action.setBadgeText) {
-        chrome.action.setBadgeText({ text: "" });
-      }
-    }, 800);
-  });
-}
+
 
 // Bind manual check button
 const manualBtn = $("manualCheckUpdateBtn");
