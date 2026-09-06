@@ -8,7 +8,7 @@ const APP_CONFIG = {
 
   // 2. GitHub Repository (username/repo for auto-updates)
   GITHUB_REPO: "smrkarim555/pngtree-ai-metadata",
-  CURRENT_COMMIT: "1036821",
+  CURRENT_COMMIT: "fc64704",
 
   // 3. Google OAuth Client ID (for Google Accounts sign-in)
   GOOGLE_CLIENT_ID: "916776251769-9cale3jpkbj83m4s0q55itkrmhj70sn2.apps.googleusercontent.com",
