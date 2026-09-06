@@ -9,7 +9,7 @@ async function checkSubCached(forceRefresh = false) {
   }
   return new Promise((resolve) => {
     chrome.runtime.sendMessage({ action: "checkSubscription" }, (res) => {
-      cachedSub = res || { isValid: false, message: "সার্ভারে কানেক্ট করা যাচ্ছে না।" };
+      cachedSub = res || { isValid: false, message: "Unable to connect to server." };
       lastSubCheck = Date.now();
       resolve(cachedSub);
     });
@@ -293,7 +293,7 @@ async function clearTagField(inputEl) {
 async function fillPanelWithAI(panel) {
   const fields = findFieldsInPanel(panel);
   if (!fields.img || !fields.img.src) {
-    return { ok: false, error: "Image পাওয়া যায়নি এই panel-এ।" };
+    return { ok: false, error: "No image found in this panel." };
   }
   const response = await generateMetadataForImage(fields.img.src);
   if (!response || !response.ok) {
@@ -383,7 +383,7 @@ function ensurePanelButton(panel) {
       btn.classList.add("locked");
       btn.disabled = true;
       btn.textContent = "🔒 Locked (Pending Approval)";
-      alert("⚠️ এক্সেস সীমাবদ্ধ!\n\n" + (sub?.message || "আপনার একাউন্ট এখনও একটিভ করা হয়নি। এডমিনের অনুমোদনের অপেক্ষায় রয়েছে।"));
+      alert("⚠️ Access Restricted!\n\n" + (sub?.message || "Your account is not activated yet. Please wait for administrator approval."));
       return;
     }
 
@@ -396,8 +396,8 @@ function ensurePanelButton(panel) {
     } else {
       btn.disabled = false;
       btn.textContent = "⚠️ Error — Retry";
-      if (result.error && (result.error.includes("সাবস্ক্রিপশন") || result.error.includes("এডমিন") || result.error.includes("Admin") || result.error.includes("লগইন"))) {
-        alert("⚠️ এক্সেস সীমাবদ্ধ!\n\n" + result.error + "\n\n(এডমিনের সাথে যোগাযোগ করে এক্টিভেশন অনুমোদন নিন)");
+      if (result.error && (result.error.toLowerCase().includes("subscription") || result.error.toLowerCase().includes("admin") || result.error.toLowerCase().includes("login"))) {
+        alert("⚠️ Access Restricted!\n\n" + result.error + "\n\n(Please contact the administrator for activation approval)");
       } else {
         alert("Error: " + result.error);
       }
@@ -557,8 +557,8 @@ async function runAutoBatch() {
   // Immediate subscription check BEFORE starting batch
   const sub = await checkSubCached(true);
   if (!sub || !sub.isValid) {
-    alert("⚠️ এক্সেস সীমাবদ্ধ!\n\n" + (sub?.message || "আপনার একাউন্ট এখনও একটিভ করা হয়নি। এডমিনের অনুমোদনের অপেক্ষায় রয়েছে।"));
-    updateStatus("🔒 একাউন্ট একটিভ নয় — এডমিনের অনুমোদন প্রয়োজন।");
+    alert("⚠️ Access Restricted!\n\n" + (sub?.message || "Your account is not activated yet. Please wait for administrator approval."));
+    updateStatus("🔒 Account not active — Administrator approval required.");
     refreshControlPanelSub();
     return;
   }
@@ -575,18 +575,18 @@ async function runAutoBatch() {
   while (!autoStopRequested) {
     const cards = getPendingCards();
     if (!cards.length) {
-      updateStatus("সব শেষ ✅ (কোনো 'To Submit' card বাকি নেই)");
+      updateStatus("All done ✅ (No 'To Submit' cards remaining)");
       break;
     }
 
     round++;
     if (round > 200) {
-      updateStatus("Safety stop: অনেকবার loop ঘুরেছে, ম্যানুয়ালি চেক করো।");
+      updateStatus("Safety stop: Loop limit reached, please check manually.");
       break;
     }
 
     const card = cards[0];
-    updateStatus(`Processing... (${processedCount + 1}টা হয়ে গেছে, বাকি আছে ${cards.length})`);
+    updateStatus(`Processing... (${processedCount + 1} completed, ${cards.length} remaining)`);
 
     const img = getCardImage(card);
     for (const type of ["pointerdown", "mousedown", "mouseup", "click"]) {
@@ -597,7 +597,7 @@ async function runAutoBatch() {
 
     const panel = await waitForPanel();
     if (!panel) {
-      updateStatus("⚠️ Panel খুলল না, থামানো হলো। Card-এ manual click করে চেক করো।");
+      updateStatus("⚠️ Panel did not open, stopped. Please click card manually.");
       break;
     }
 
@@ -610,7 +610,7 @@ async function runAutoBatch() {
     }
     lastImgSrc = curImgSrc;
     if (sameCardStreak >= 3) {
-      updateStatus("⚠️ একই card-এ ৩ বার আটকে গেছে (হয়তো বারবার keyword/field error) — থামানো হলো। Manual-এ চেক করো।");
+      updateStatus("⚠️ Stuck on the same card 3 times (keyword/field error) — stopped. Please check manually.");
       break;
     }
 
@@ -618,7 +618,7 @@ async function runAutoBatch() {
     const result = await fillPanelWithAI(panel);
 
     if (!result.ok) {
-      updateStatus("⚠️ Error: " + result.error + " — থামানো হলো।");
+      updateStatus("⚠️ Error: " + result.error + " — stopped.");
       break;
     }
 
@@ -626,7 +626,7 @@ async function runAutoBatch() {
     const submitResult = await waitForSubmitAndClose(panel);
 
     if (!submitResult.clicked) {
-      updateStatus("⚠️ Submit বাটন খুঁজে পাইনি, থামানো হলো। ম্যানুয়ালি Submit করো।");
+      updateStatus("⚠️ Submit button not found, stopped. Please submit manually.");
       break;
     }
 
@@ -635,19 +635,19 @@ async function runAutoBatch() {
       // stop the whole batch — dismiss and retry the SAME card fresh on the
       // next loop (new AI call + sanitizer will usually produce clean
       // keywords). sameCardStreak above caps this at 3 tries.
-      updateStatus(`⚠️ Site থেকে error: "${submitResult.errorText}" — নতুন keyword দিয়ে আবার চেষ্টা করছি...`);
+      updateStatus(`⚠️ Site error: "${submitResult.errorText}" — retrying with fresh keywords...`);
       await sleep(1200);
       continue;
     }
 
     if (!submitResult.closed) {
-      updateStatus("⚠️ Submit চাপা হলো কিন্তু panel বন্ধ হয়নি — আবার চেষ্টা করছি...");
+      updateStatus("⚠️ Submit was clicked but panel did not close — retrying...");
       await sleep(1000);
       continue;
     }
 
     processedCount++;
-    updateStatus(`✅ Submitted (${processedCount}টা হয়ে গেছে)। পরের card-এ যাচ্ছি...`);
+    updateStatus(`✅ Submitted (${processedCount} completed). Moving to next card...`);
     await sleep(1800); // let the list refresh, and ease API rate limits
 
     if (autoStopRequested) break;
@@ -659,7 +659,7 @@ async function runAutoBatch() {
 
 function stopAutoBatch() {
   autoStopRequested = true;
-  updateStatus("থামানো হচ্ছে...");
+  updateStatus("Stopping...");
 }
 
 // ================= Floating control panel (Run All / Stop) =================
@@ -688,7 +688,7 @@ function ensureControlPanel() {
     e.preventDefault();
     const sub = await checkSubCached(true);
     if (!sub || !sub.isValid) {
-      alert("⚠️ এক্সেস সীমাবদ্ধ!\n\n" + (sub?.message || "আপনার একাউন্ট এখনও একটিভ করা হয়নি। এডমিনের অনুমোদনের অপেক্ষায় রয়েছে।"));
+      alert("⚠️ Access Restricted!\n\n" + (sub?.message || "Your account is not activated yet. Please wait for administrator approval."));
       refreshControlPanelSub();
       return;
     }
@@ -709,7 +709,7 @@ function ensureControlPanel() {
 
   const status = document.createElement("div");
   status.className = "ai-batch-status";
-  status.textContent = "🔒 এডমিনের অনুমোদন প্রয়োজন";
+  status.textContent = "🔒 Admin approval required";
   status.style.color = "#dc2626";
 
   wrap.appendChild(title);
@@ -736,7 +736,7 @@ async function refreshControlPanelSub() {
     if (runBtn.textContent !== lockedText) runBtn.textContent = lockedText;
 
     if (status) {
-      const statusText = "🔒 এডমিনের অনুমোদন প্রয়োজন";
+      const statusText = "🔒 Admin approval required";
       if (status.textContent !== statusText) status.textContent = statusText;
       if (status.style.color !== "rgb(220, 38, 38)" && status.style.color !== "#dc2626") {
         status.style.color = "#dc2626";
@@ -748,7 +748,7 @@ async function refreshControlPanelSub() {
     const readyText = "▶ Auto Run All (Generate + Save)";
     if (runBtn.textContent !== readyText) runBtn.textContent = readyText;
 
-    if (status && status.textContent.includes("অনুমোদন প্রয়োজন")) {
+    if (status && status.textContent.includes("Admin approval")) {
       status.textContent = "Ready";
       status.style.color = "";
     }

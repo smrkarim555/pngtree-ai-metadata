@@ -35,7 +35,7 @@ const AuthService = {
   async loginWithEmail(email) {
     const cleanEmail = (email || "").trim().toLowerCase();
     if (!cleanEmail || !cleanEmail.includes("@")) {
-      throw new Error("সঠিক Gmail ঠিকানা লিখুন (যেমন: user@gmail.com)।");
+      throw new Error("Please enter a valid Gmail address (e.g. user@gmail.com).");
     }
 
     const mockName = cleanEmail.split("@")[0];
@@ -71,18 +71,18 @@ const AuthService = {
         );
 
         if (!authUriRes.ok) {
-          throw new Error("Google Login লিংক তৈরি করা যায়নি।");
+          throw new Error("Failed to create Google Login link.");
         }
 
         const { authUri } = await authUriRes.json();
-        if (!authUri) throw new Error("Google OAuth URL পাওয়া যায়নি।");
+        if (!authUri) throw new Error("Google OAuth URL not found.");
 
         // 2. Launch Chrome web auth flow - directly opens accounts.google.com!
         chrome.identity.launchWebAuthFlow(
           { url: authUri, interactive: true },
           async (responseUrl) => {
             if (chrome.runtime.lastError || !responseUrl) {
-              const errMsg = chrome.runtime.lastError?.message || "Google Sign-In বাতিল করা হয়েছে।";
+              const errMsg = chrome.runtime.lastError?.message || "Google Sign-In was cancelled.";
               return reject(new Error(errMsg));
             }
 
@@ -113,7 +113,7 @@ const AuthService = {
               }
 
               if (!profile || !profile.email) {
-                throw new Error("Google থেকে প্রোফাইল তথ্য পাওয়া যায়নি।");
+                throw new Error("Failed to retrieve profile information from Google.");
               }
 
               // 4. Save to Firebase Realtime Database
@@ -232,7 +232,7 @@ const AuthService = {
       return {
         isValid: false,
         status: "not_logged_in",
-        message: "দয়া করে প্রথমে Google দিয়ে লগইন করুন।"
+        message: "Please sign in with Google first."
       };
     }
 
@@ -261,7 +261,7 @@ const AuthService = {
       return {
         isValid: false,
         status: "blocked",
-        message: "আপনার একাউন্ট সাময়িকভাবে স্থগিত করা হয়েছে। এডমিনের সাথে যোগাযোগ করুন।",
+        message: "Your account has been suspended. Please contact the administrator.",
         user
       };
     }
@@ -270,7 +270,7 @@ const AuthService = {
       return {
         isValid: false,
         status: "pending",
-        message: "আপনার একাউন্ট এখনও একটিভ করা হয়নি। এডমিনের অনুমোদনের অপেক্ষায় রয়েছে।",
+        message: "Your account is pending activation. Please wait for administrator approval.",
         user
       };
     }
@@ -280,7 +280,7 @@ const AuthService = {
       return {
         isValid: false,
         status: "expired",
-        message: "আপনার ১ মাসের সাবস্ক্রিপশনের মেয়াদ শেষ হয়ে গেছে। রিনিউ করতে এডমিনের সাথে যোগাযোগ করুন।",
+        message: "Your 1-month subscription has expired. Please contact the administrator to renew.",
         user
       };
     }
@@ -300,7 +300,7 @@ const AuthService = {
   async getAllUsers() {
     const currentUser = await this.getCurrentUser();
     if (!this.isAdmin(currentUser?.email)) {
-      throw new Error("শুধুমাত্র Admin এই লিস্ট দেখতে পারবেন।");
+      throw new Error("Only administrators can view this user list.");
     }
 
     const fb = APP_CONFIG.FIREBASE;
@@ -335,7 +335,7 @@ const AuthService = {
   async activateUserOneMonth(targetEmail) {
     const currentUser = await this.getCurrentUser();
     if (!this.isAdmin(currentUser?.email)) {
-      throw new Error("শুধুমাত্র Admin ইউজার একটিভ করতে পারবেন।");
+      throw new Error("Only administrators can activate users.");
     }
 
     const sanitizedKey = sanitizeEmailKey(targetEmail);
@@ -365,7 +365,7 @@ const AuthService = {
   async deactivateUser(targetEmail) {
     const currentUser = await this.getCurrentUser();
     if (!this.isAdmin(currentUser?.email)) {
-      throw new Error("শুধুমাত্র Admin ইউজার ব্লক করতে পারবেন।");
+      throw new Error("Only administrators can block users.");
     }
 
     const sanitizedKey = sanitizeEmailKey(targetEmail);

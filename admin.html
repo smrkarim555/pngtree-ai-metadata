@@ -280,13 +280,13 @@
   <!-- PIN Protection Screen -->
   <div id="authView">
     <div style="font-size: 36px; margin-bottom: 8px;">🔐</div>
-    <h2>এডমিন ভেরিফিকেশন</h2>
+    <h2>Admin Verification</h2>
     <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-      মোবাইল থেকে ইউজার ম্যানেজ করতে আপনার Admin PIN দিন
+      Enter your Admin PIN to manage users from mobile
     </p>
     <input id="pinInput" class="pin-input" type="password" maxlength="6" placeholder="••••" autocomplete="off" />
-    <button id="pinSubmitBtn" class="login-btn" type="button">লগইন করুন</button>
-    <p style="font-size: 10.5px; color: #94a3b8; margin-top: 10px;">ডিফল্ট PIN: 5555</p>
+    <button id="pinSubmitBtn" class="login-btn" type="button">Login</button>
+    <p style="font-size: 10.5px; color: #94a3b8; margin-top: 10px;">Default PIN: 5555</p>
   </div>
 
   <!-- Mobile Dashboard Screen -->
@@ -296,42 +296,42 @@
     <div class="stats-row">
       <div class="stat-card">
         <div class="stat-val" id="totalCount">0</div>
-        <div class="stat-label">মোট ইউজার</div>
+        <div class="stat-label">Total Users</div>
       </div>
       <div class="stat-card">
         <div class="stat-val" style="color: #854d0e;" id="pendingCount">0</div>
-        <div class="stat-label">পেন্ডিং</div>
+        <div class="stat-label">Pending</div>
       </div>
       <div class="stat-card">
         <div class="stat-val" style="color: #15803d;" id="activeCount">0</div>
-        <div class="stat-label">এক্টিভ</div>
+        <div class="stat-label">Active</div>
       </div>
     </div>
 
     <!-- Search -->
-    <input id="searchBox" class="search-box" type="text" placeholder="🔍 ইউজার বা ইমেইল খুঁজুন..." />
+    <input id="searchBox" class="search-box" type="text" placeholder="🔍 Search user or email..." />
 
     <!-- Filter Tabs -->
     <div class="filter-tabs">
-      <div class="filter-tab active" data-filter="all">সকল ইউজার</div>
-      <div class="filter-tab" data-filter="pending">⏳ পেন্ডিং</div>
-      <div class="filter-tab" data-filter="active">✅ এক্টিভ</div>
-      <div class="filter-tab" data-filter="expired">❌ মেয়াদোত্তীর্ণ</div>
+      <div class="filter-tab active" data-filter="all">All Users</div>
+      <div class="filter-tab" data-filter="pending">⏳ Pending</div>
+      <div class="filter-tab" data-filter="active">✅ Active</div>
+      <div class="filter-tab" data-filter="expired">❌ Expired</div>
     </div>
 
     <!-- User List -->
     <div class="user-list" id="userListContainer">
-      <div style="text-align: center; color: #888; padding: 20px;">লোড হচ্ছে...</div>
+      <div style="text-align: center; color: #888; padding: 20px;">Loading...</div>
     </div>
 
   </div>
 
   <!-- Toast Notification -->
-  <div id="toast" class="toast">কার্যকর হয়েছে!</div>
+  <div id="toast" class="toast">Action completed!</div>
 
   <script>
     const FIREBASE_DB_URL = "https://pngtree-meta-default-rtdb.firebaseio.com";
-    const ADMIN_PIN = "5555"; // আপনি চাইলে এখানে যেকোনো গোপন PIN দিতে পারেন
+    const ADMIN_PIN = "5555"; // Set your secret PIN here
     const ADMIN_EMAIL = "smrkarim555@gmail.com";
 
     const authView = document.getElementById("authView");
@@ -365,9 +365,9 @@
         authView.style.display = "none";
         dashboardView.style.display = "block";
         loadUsers();
-        showToast("স্বাগতম এডমিন!");
+        showToast("Welcome Admin!");
       } else {
-        alert("ভুল PIN! সঠিক PIN দিন। (ডিফল্ট: 5555)");
+        alert("Invalid PIN! Please enter correct PIN. (Default: 5555)");
         pinInput.value = "";
         pinInput.focus();
       }
@@ -378,7 +378,7 @@
     });
 
     async function loadUsers() {
-      userListContainer.innerHTML = "<div style='text-align: center; color: #888; padding: 20px;'>ডাটাবেজ থেকে লোড হচ্ছে...</div>";
+      userListContainer.innerHTML = "<div style='text-align: center; color: #888; padding: 20px;'>Loading from database...</div>";
       try {
         const res = await fetch(`${FIREBASE_DB_URL}/users.json`);
         const data = await res.json() || {};
@@ -386,7 +386,7 @@
         updateStats();
         renderUsers();
       } catch (err) {
-        userListContainer.innerHTML = `<div style='color: red; text-align: center; padding: 20px;'>এরর: ${err.message}</div>`;
+        userListContainer.innerHTML = `<div style='color: red; text-align: center; padding: 20px;'>Error: ${err.message}</div>`;
       }
     }
 
@@ -419,7 +419,7 @@
       });
 
       if (filtered.length === 0) {
-        userListContainer.innerHTML = "<div style='text-align: center; color: #888; padding: 20px;'>কোনো ইউজার পাওয়া যায়নি।</div>";
+        userListContainer.innerHTML = "<div style='text-align: center; color: #888; padding: 20px;'>No users found.</div>";
         return;
       }
 
@@ -434,23 +434,23 @@
         if (u.role === "admin" || u.email === ADMIN_EMAIL) {
           badgeClass = "badge-admin";
           badgeText = "Admin 👑";
-          daysInfo = "আনলিমিটেড এক্সেস";
+          daysInfo = "Unlimited Access";
         } else if (u.status === "blocked") {
           badgeClass = "badge-blocked";
           badgeText = "Blocked";
         } else if (u.status === "active" && u.subscriptionExpiresAt > Date.now()) {
           badgeClass = "badge-active";
           const days = Math.max(1, Math.ceil((u.subscriptionExpiresAt - Date.now()) / (1000 * 60 * 60 * 24)));
-          badgeText = `Active (${days} দিন)`;
-          daysInfo = `মেয়াদ শেষ: ${new Date(u.subscriptionExpiresAt).toLocaleDateString()}`;
+          badgeText = `Active (${days}d)`;
+          daysInfo = `Expires: ${new Date(u.subscriptionExpiresAt).toLocaleDateString()}`;
         } else if (u.subscriptionExpiresAt && u.subscriptionExpiresAt <= Date.now()) {
           badgeClass = "badge-expired";
           badgeText = "Expired";
-          daysInfo = `মেয়াদ শেষ হয়েছে: ${new Date(u.subscriptionExpiresAt).toLocaleDateString()}`;
+          daysInfo = `Expired: ${new Date(u.subscriptionExpiresAt).toLocaleDateString()}`;
         } else {
           badgeClass = "badge-pending";
           badgeText = "Pending ⏳";
-          daysInfo = "অনুমোদনের অপেক্ষায় রয়েছে";
+          daysInfo = "Waiting for approval";
         }
 
         const isUserAdmin = u.role === "admin" || u.email === ADMIN_EMAIL;
@@ -461,12 +461,12 @@
             <span class="badge ${badgeClass}">${badgeText}</span>
           </div>
           <div class="user-meta">
-            <span>নাম: <strong>${u.name || "N/A"}</strong></span> • <span>${daysInfo}</span>
+            <span>Name: <strong>${u.name || "N/A"}</strong></span> • <span>${daysInfo}</span>
           </div>
           ${isUserAdmin ? '' : `
             <div class="action-row">
-              <button class="act-btn btn-act" data-email="${u.email}">⚡ 1 মাস Active</button>
-              <button class="act-btn btn-ext" data-email="${u.email}">➕ +30 দিন</button>
+              <button class="act-btn btn-act" data-email="${u.email}">⚡ 1 Month Active</button>
+              <button class="act-btn btn-ext" data-email="${u.email}">➕ +30 Days</button>
               <button class="act-btn btn-blk" data-email="${u.email}">⛔ Block</button>
             </div>
           `}
@@ -479,7 +479,7 @@
             actBtn.disabled = true;
             actBtn.textContent = "⏳...";
             await updateUserSubscription(u.email, 30);
-            showToast(`✅ ${u.email} ১ মাসের জন্য এক্টিভ হয়েছে!`);
+            showToast(`✅ ${u.email} activated for 1 month!`);
             await loadUsers();
           });
         }
@@ -490,7 +490,7 @@
             extBtn.disabled = true;
             extBtn.textContent = "⏳...";
             await updateUserSubscription(u.email, 30);
-            showToast(`✅ ${u.email}-এর মেয়াদ আরও ৩০ দিন বাড়ানো হলো!`);
+            showToast(`✅ ${u.email} extended by 30 days!`);
             await loadUsers();
           });
         }
@@ -498,11 +498,11 @@
         const blkBtn = card.querySelector(".btn-blk");
         if (blkBtn) {
           blkBtn.addEventListener("click", async () => {
-            if (confirm(`${u.email}-কে সাময়িকভাবে ব্লক করতে চান?`)) {
+            if (confirm(`Do you want to block ${u.email}?`)) {
               blkBtn.disabled = true;
               blkBtn.textContent = "⏳...";
               await blockUser(u.email);
-              showToast(`⛔ ${u.email} ব্লক করা হয়েছে!`);
+              showToast(`⛔ ${u.email} has been blocked!`);
               await loadUsers();
             }
           });

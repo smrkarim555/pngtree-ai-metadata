@@ -181,7 +181,7 @@
         localStorage.setItem("pngtree_currentUser", JSON.stringify(userData));
 
         status.className = "status-msg success";
-        status.innerHTML = `✅ স্বাগতম, ${u.displayName || u.email}!<br>লগইন সফল হয়েছে। আপনি এখন এই ট্যাবটি বন্ধ করতে পারেন।`;
+        status.innerHTML = `✅ Welcome, ${u.displayName || u.email}!<br>Sign-in successful. You can now close this tab.`;
         btn.style.display = "none";
 
         // Try closing after 2 seconds
@@ -191,7 +191,7 @@
 
       } catch (err) {
         status.className = "status-msg error";
-        status.innerText = "লগইন এরর: " + (err.message || err);
+        status.innerText = "Login error: " + (err.message || err);
         btn.disabled = false;
         btn.innerHTML = "Sign in with Google";
       }

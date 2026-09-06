@@ -117,28 +117,28 @@ async function updateAuthUI() {
   if (sub.isAdmin) {
     badge.classList.add("badge-admin");
     badge.textContent = "👑 Admin (Unlimited)";
-    msg.textContent = "এডমিন একাউন্ট সক্রিয় রয়েছে। আপনি যেকোনো ইউজারকে একটিভ করতে পারবেন।";
+    msg.textContent = "Admin account active. You can activate and manage any user.";
     adminCard.classList.add("show");
     loadAdminUsers();
   } else if (sub.status === "active") {
     badge.classList.add("badge-active");
-    badge.textContent = `✅ Active (${sub.daysLeft} দিন বাকি)`;
-    msg.textContent = `আপনার ১ মাসের সাবস্ক্রিপশন চালু আছে। মেয়াদ বাকি: ${sub.daysLeft} দিন।`;
+    badge.textContent = `✅ Active (${sub.daysLeft} days left)`;
+    msg.textContent = `Your 1-month subscription is active. Time left: ${sub.daysLeft} days.`;
     adminCard.classList.remove("show");
   } else if (sub.status === "expired") {
     badge.classList.add("badge-expired");
     badge.textContent = "❌ Expired";
-    msg.textContent = "আপনার ১ মাসের মেয়াদ শেষ হয়েছে। রিনিউ করতে এডমিনের সাথে যোগাযোগ করুন।";
+    msg.textContent = "Your 1-month subscription has expired. Contact admin to renew.";
     adminCard.classList.remove("show");
   } else if (sub.status === "blocked") {
     badge.classList.add("badge-blocked");
     badge.textContent = "⛔ Blocked";
-    msg.textContent = "আপনার একাউন্ট সাময়িকভাবে বন্ধ করা হয়েছে।";
+    msg.textContent = "Your account has been temporarily blocked.";
     adminCard.classList.remove("show");
   } else {
     badge.classList.add("badge-pending");
     badge.textContent = "⏳ Pending Approval";
-    msg.textContent = "আপনার একাউন্ট এখনও একটিভ করা হয়নি। এডমিনের অনুমোদনের অপেক্ষায় রয়েছে।";
+    msg.textContent = "Your account is pending activation. Waiting for admin approval.";
     adminCard.classList.remove("show");
   }
 }
@@ -153,7 +153,7 @@ $("googleSignInBtn").addEventListener("click", async () => {
 
   if (!email) {
     if (errDiv) {
-      errDiv.innerText = "⚠️ দয়া করে আপনার Gmail অ্যাড্রেসটি লিখুন (যেমন: user@gmail.com)";
+      errDiv.innerText = "⚠️ Please enter your Gmail address (e.g. user@gmail.com)";
       errDiv.style.display = "block";
     }
     if (emailInput) emailInput.focus();
@@ -170,10 +170,10 @@ $("googleSignInBtn").addEventListener("click", async () => {
     await updateAuthUI();
   } catch (err) {
     if (errDiv) {
-      errDiv.innerText = "লগইন এরর: " + err.message;
+      errDiv.innerText = "Login error: " + err.message;
       errDiv.style.display = "block";
     } else {
-      alert("লগইন এরর: " + err.message);
+      alert("Login error: " + err.message);
     }
   } finally {
     btn.disabled = false;
@@ -190,7 +190,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
 // Sign-Out Handler
 $("signOutBtn").addEventListener("click", async () => {
-  if (confirm("আপনি কি নিশ্চিত লগআউট করতে চান?")) {
+  if (confirm("Are you sure you want to log out?")) {
     await AuthService.signOut();
     await updateAuthUI();
   }
@@ -199,14 +199,14 @@ $("signOutBtn").addEventListener("click", async () => {
 // ================= Admin Panel Logic =================
 async function loadAdminUsers() {
   const listEl = $("adminUserList");
-  listEl.innerHTML = "<div style='text-align:center; padding:10px; color:#888;'>ইউজার লিস্ট লোড হচ্ছে...</div>";
+  listEl.innerHTML = "<div style='text-align:center; padding:10px; color:#888;'>Loading user list...</div>";
 
   try {
     const users = await AuthService.getAllUsers();
     allUsersCache = users;
     renderAdminUsers(users);
   } catch (err) {
-    listEl.innerHTML = `<div style='color:red; padding:6px;'>এরর: ${err.message}</div>`;
+    listEl.innerHTML = `<div style='color:red; padding:6px;'>Error: ${err.message}</div>`;
   }
 }
 
@@ -221,7 +221,7 @@ function renderAdminUsers(users) {
   );
 
   if (filtered.length === 0) {
-    listEl.innerHTML = "<div style='text-align:center; padding:10px; color:#888;'>কোনো ইউজার পাওয়া যায়নি।</div>";
+    listEl.innerHTML = "<div style='text-align:center; padding:10px; color:#888;'>No users found.</div>";
     return;
   }
 
@@ -243,11 +243,11 @@ function renderAdminUsers(users) {
       statusClass = "badge-active";
       const days = Math.max(1, Math.ceil((u.subscriptionExpiresAt - Date.now()) / (1000 * 60 * 60 * 24)));
       statusText = `Active (${days}d)`;
-      daysLeftText = `মেয়াদ: ${new Date(u.subscriptionExpiresAt).toLocaleDateString()}`;
+      daysLeftText = `Expires: ${new Date(u.subscriptionExpiresAt).toLocaleDateString()}`;
     } else if (u.subscriptionExpiresAt && u.subscriptionExpiresAt <= Date.now()) {
       statusClass = "badge-expired";
       statusText = "Expired";
-      daysLeftText = `মেয়াদ শেষ: ${new Date(u.subscriptionExpiresAt).toLocaleDateString()}`;
+      daysLeftText = `Expired: ${new Date(u.subscriptionExpiresAt).toLocaleDateString()}`;
     } else {
       statusClass = "badge-pending";
       statusText = "Pending";
@@ -259,7 +259,7 @@ function renderAdminUsers(users) {
         <span class="badge ${statusClass}">${statusText}</span>
       </div>
       <div class="user-item-details">
-        <span>নাম: ${u.name || "N/A"}</span> ${daysLeftText ? `• <span>${daysLeftText}</span>` : ""}
+        <span>Name: ${u.name || "N/A"}</span> ${daysLeftText ? `• <span>${daysLeftText}</span>` : ""}
       </div>
       ${
         u.role === "admin"
@@ -298,7 +298,7 @@ function renderAdminUsers(users) {
     const blockBtn = item.querySelector(".act-block");
     if (blockBtn) {
       blockBtn.addEventListener("click", async () => {
-        if (confirm(`${u.email}-কে সাময়িক ব্লক করতে চান?`)) {
+        if (confirm(`Do you want to block ${u.email}?`)) {
           blockBtn.disabled = true;
           blockBtn.textContent = "⏳...";
           await AuthService.deactivateUser(u.email);

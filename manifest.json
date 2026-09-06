@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Pngtree AI Metadata Filler",
   "version": "1.0.0",
-  "description": "Gemini/Groq/Mistral vision AI diye Pngtree upload panel-e Title, Main keywords, Secondary keywords auto-fill kore.",
+  "description": "Auto-fills Title, Main keywords, and Secondary keywords on Pngtree upload panel using Gemini, Groq, and Mistral vision AI.",
   "permissions": ["storage", "activeTab", "scripting", "identity"],
   "host_permissions": [
     "https://*.pngtree.com/*",

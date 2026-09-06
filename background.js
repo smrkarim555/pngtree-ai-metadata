@@ -167,7 +167,7 @@ async function callGemini(imageDataUrl, apiKey, model, attempt = 1) {
     if (data.promptFeedback?.blockReason) {
       throw new Error(`Gemini blocked request: ${data.promptFeedback.blockReason}`);
     }
-    throw new Error("Gemini থেকে কোনো রেসপন্স আসেনি।");
+    throw new Error("Gemini returned an empty response.");
   }
 
   const text = candidate.content?.parts?.[0]?.text;
@@ -234,7 +234,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         if (!sub.isValid) {
           throw new Error(
             sub.message ||
-              "সাবস্ক্রিপশন মেয়াদ শেষ বা একাউন্ট এক্টিভ নয়। এডমিনের সাথে যোগাযোগ করুন।"
+              "Subscription expired or account not active. Please contact the administrator."
           );
         }
 
@@ -248,13 +248,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
         let raw;
         if (provider === "groq") {
-          if (!s.groqKey) throw new Error("Groq API key দেওয়া নেই — extension popup-এ গিয়ে সেভ করো।");
+          if (!s.groqKey) throw new Error("Groq API key not configured — please save it in the extension popup.");
           raw = await callGroq(imageDataUrl, s.groqKey, s.groqModel || "meta-llama/llama-4-scout-17b-16e-instruct");
         } else if (provider === "mistral") {
-          if (!s.mistralKey) throw new Error("Mistral API key দেওয়া নেই — extension popup-এ গিয়ে সেভ করো।");
+          if (!s.mistralKey) throw new Error("Mistral API key not configured — please save it in the extension popup.");
           raw = await callMistral(imageDataUrl, s.mistralKey, s.mistralModel || "pixtral-large-latest");
         } else if (provider === "gemini") {
-          if (!s.geminiKey) throw new Error("Gemini API key দেওয়া নেই — extension popup-এ গিয়ে সেভ করো।");
+          if (!s.geminiKey) throw new Error("Gemini API key not configured — please save it in the extension popup.");
           raw = await callGemini(imageDataUrl, s.geminiKey, s.geminiModel || "gemini-3.1-flash-lite");
         }
         const parsed = parseJsonSafe(raw);
