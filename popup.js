@@ -346,21 +346,9 @@ async function checkUpdateBanner(isManual = false) {
       const saved = await chrome.storage.local.get(["dismissedUpdate"]);
       const isDismissed = saved.dismissedUpdate === updateId;
 
-      if (update.latestVersion && update.latestVersion !== update.currentVersion) {
-        verText.textContent = `v${update.latestVersion} Available!`;
-      } else if (update.latestCommit && update.latestCommit.sha) {
-        verText.textContent = `Git: ${update.latestCommit.sha} Update!`;
-      } else {
-        verText.textContent = "New Update Available!";
-      }
-
-      if (update.latestCommit && update.latestCommit.message) {
-        commitMsg.textContent = `"${update.latestCommit.message}"`;
-        commitMsg.style.display = "block";
-      } else {
-        commitMsg.textContent = "Click Update to download latest version.";
-        commitMsg.style.display = "block";
-      }
+      verText.textContent = `v${update.latestVersion} Available!`;
+      commitMsg.textContent = "Run update.bat inside the extension folder to update.";
+      commitMsg.style.display = "block";
 
       // Show banner if not dismissed or if user clicked manual check
       if (isManual || !isDismissed) {
@@ -371,7 +359,7 @@ async function checkUpdateBanner(isManual = false) {
         statusMsg.style.display = "block";
         statusMsg.style.background = "#fef3c7";
         statusMsg.style.color = "#92400e";
-        statusMsg.innerHTML = "🚀 <strong>Update available!</strong> Run <code>update.bat</code> inside extension folder, or click Update.";
+        statusMsg.innerHTML = `🚀 <strong>Update available (v${update.latestVersion})!</strong> Run <code>update.bat</code> inside extension folder to update.`;
       }
     } else {
       banner.style.display = "none";

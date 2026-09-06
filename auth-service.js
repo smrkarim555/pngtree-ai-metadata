@@ -387,7 +387,7 @@ const AuthService = {
     }
   },
 
-  // GitHub Auto-Update Checker (checks both Manifest version and latest commit)
+  // GitHub Auto-Update Checker
   async checkGitHubUpdate() {
     const repo = APP_CONFIG.GITHUB_REPO;
     if (!repo || repo.includes("yourusername")) {
@@ -396,47 +396,18 @@ const AuthService = {
 
     try {
       const currentVersion = chrome.runtime.getManifest().version;
-      let remoteVersion = currentVersion;
-      let hasVersionUpdate = false;
+      const url = `https://raw.githubusercontent.com/${repo}/main/manifest.json?_t=${Date.now()}`;
+      const res = await fetch(url);
+      if (!res.ok) return { hasUpdate: false, reason: "fetch_failed" };
 
-      // 1. Check remote manifest version
-      try {
-        const url = `https://raw.githubusercontent.com/${repo}/main/manifest.json?_t=${Date.now()}`;
-        const res = await fetch(url);
-        if (res.ok) {
-          const remoteManifest = await res.json();
-          remoteVersion = remoteManifest.version || currentVersion;
-          hasVersionUpdate = this.isVersionHigher(remoteVersion, currentVersion);
-        }
-      } catch (e) {}
-
-      // 2. Check latest commit from GitHub Commits API
-      let latestCommit = null;
-      let hasCommitUpdate = false;
-      try {
-        const commitRes = await fetch(`https://api.github.com/repos/${repo}/commits/main?_t=${Date.now()}`);
-        if (commitRes.ok) {
-          const commitData = await commitRes.json();
-          latestCommit = {
-            sha: commitData.sha ? commitData.sha.substring(0, 7) : "",
-            message: commitData.commit?.message ? commitData.commit.message.split("\n")[0] : "",
-            date: commitData.commit?.committer?.date || ""
-          };
-          if (APP_CONFIG.CURRENT_COMMIT && latestCommit.sha && APP_CONFIG.CURRENT_COMMIT !== latestCommit.sha) {
-            hasCommitUpdate = true;
-          }
-        }
-      } catch (e) {}
-
-      const hasUpdate = hasVersionUpdate || hasCommitUpdate;
+      const remoteManifest = await res.json();
+      const remoteVersion = remoteManifest.version || currentVersion;
+      const hasUpdate = this.isVersionHigher(remoteVersion, currentVersion);
 
       return {
         hasUpdate,
         currentVersion,
         latestVersion: remoteVersion,
-        currentCommit: APP_CONFIG.CURRENT_COMMIT || "",
-        latestCommit,
-        downloadZipUrl: `https://github.com/${repo}/archive/refs/heads/main.zip`,
         repoUrl: `https://github.com/${repo}`
       };
     } catch (e) {
