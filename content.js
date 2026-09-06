@@ -338,17 +338,22 @@ function stopEventFromClosingPanel(el) {
 function ensurePanelButton(panel) {
   if (panel.querySelector(".ai-meta-btn")) return;
   const btn = document.createElement("button");
-  btn.className = "ai-meta-btn";
+  btn.className = "ai-meta-btn locked";
   btn.type = "button";
-  btn.textContent = "🤖 Generate AI Metadata";
+  btn.disabled = true;
+  btn.textContent = "🔒 Locked (Pending Approval)";
   stopEventFromClosingPanel(btn);
 
-  // Check subscription and lock if needed
+  // Check subscription and unlock ONLY if valid
   checkSubCached().then((sub) => {
-    if (sub && !sub.isValid) {
+    if (sub && sub.isValid) {
+      btn.classList.remove("locked");
+      btn.disabled = false;
+      btn.textContent = "🤖 Generate AI Metadata";
+    } else {
       btn.classList.add("locked");
       btn.disabled = true;
-      btn.textContent = "🔒 Locked (Approval Needed)";
+      btn.textContent = "🔒 Locked (Pending Approval)";
     }
   });
 
@@ -360,7 +365,7 @@ function ensurePanelButton(panel) {
     if (!sub || !sub.isValid) {
       btn.classList.add("locked");
       btn.disabled = true;
-      btn.textContent = "🔒 Locked (Approval Needed)";
+      btn.textContent = "🔒 Locked (Pending Approval)";
       alert("⚠️ এক্সেস সীমাবদ্ধ!\n\n" + (sub?.message || "আপনার একাউন্ট এখনও একটিভ করা হয়নি। এডমিনের অনুমোদনের অপেক্ষায় রয়েছে।"));
       return;
     }
@@ -655,9 +660,10 @@ function ensureControlPanel() {
   title.textContent = "🤖 Pngtree AI Metadata";
 
   const runBtn = document.createElement("button");
-  runBtn.className = "ai-batch-run";
+  runBtn.className = "ai-batch-run locked";
   runBtn.type = "button";
-  runBtn.textContent = "▶ Auto Run All (Generate + Save)";
+  runBtn.disabled = true;
+  runBtn.textContent = "🔒 Locked (Pending Approval)";
   stopEventFromClosingPanel(runBtn);
   runBtn.addEventListener("click", async (e) => {
     e.stopPropagation();
@@ -685,7 +691,8 @@ function ensureControlPanel() {
 
   const status = document.createElement("div");
   status.className = "ai-batch-status";
-  status.textContent = "Ready";
+  status.textContent = "🔒 এডমিনের অনুমোদন প্রয়োজন";
+  status.style.color = "#dc2626";
 
   wrap.appendChild(title);
   wrap.appendChild(runBtn);
@@ -730,9 +737,17 @@ function setControlPanelState(state) {
     runBtn.classList.add("active");
     stopBtn.disabled = false;
   } else {
-    runBtn.disabled = false;
-    runBtn.classList.remove("active");
     stopBtn.disabled = true;
+    runBtn.classList.remove("active");
+    if (!cachedSub || !cachedSub.isValid) {
+      runBtn.classList.add("locked");
+      runBtn.disabled = true;
+      runBtn.textContent = "🔒 Locked (Pending Approval)";
+    } else {
+      runBtn.classList.remove("locked");
+      runBtn.disabled = false;
+      runBtn.textContent = "▶ Auto Run All (Generate + Save)";
+    }
   }
 }
 
@@ -745,6 +760,5 @@ const observer = new MutationObserver(() => {
 observer.observe(document.body, { childList: true, subtree: true });
 
 ensureControlPanel();
-setControlPanelState("idle");
 const initialPanel = findOpenPanel();
 if (initialPanel) ensurePanelButton(initialPanel);
