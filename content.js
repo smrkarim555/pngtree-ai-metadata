@@ -1,3 +1,21 @@
+// ================= Subscription verification =================
+let cachedSub = null;
+let lastSubCheck = 0;
+
+async function checkSubCached(forceRefresh = false) {
+  const now = Date.now();
+  if (!forceRefresh && cachedSub && now - lastSubCheck < 8000) {
+    return cachedSub;
+  }
+  return new Promise((resolve) => {
+    chrome.runtime.sendMessage({ action: "checkSubscription" }, (res) => {
+      cachedSub = res || { isValid: false, message: "সার্ভারে কানেক্ট করা যাচ্ছে না।" };
+      lastSubCheck = Date.now();
+      resolve(cachedSub);
+    });
+  });
+}
+
 // ================= React-safe value setter =================
 function setNativeValue(element, value) {
   const proto = Object.getPrototypeOf(element);
@@ -324,9 +342,29 @@ function ensurePanelButton(panel) {
   btn.type = "button";
   btn.textContent = "🤖 Generate AI Metadata";
   stopEventFromClosingPanel(btn);
+
+  // Check subscription and lock if needed
+  checkSubCached().then((sub) => {
+    if (sub && !sub.isValid) {
+      btn.classList.add("locked");
+      btn.disabled = true;
+      btn.textContent = "🔒 Locked (Approval Needed)";
+    }
+  });
+
   btn.addEventListener("click", async (e) => {
     e.stopPropagation();
     e.preventDefault();
+
+    const sub = await checkSubCached(true);
+    if (!sub || !sub.isValid) {
+      btn.classList.add("locked");
+      btn.disabled = true;
+      btn.textContent = "🔒 Locked (Approval Needed)";
+      alert("⚠️ এক্সেস সীমাবদ্ধ!\n\n" + (sub?.message || "আপনার একাউন্ট এখনও একটিভ করা হয়নি। এডমিনের অনুমোদনের অপেক্ষায় রয়েছে।"));
+      return;
+    }
+
     btn.disabled = true;
     btn.textContent = "⏳ Generating...";
     const result = await fillPanelWithAI(panel);
@@ -337,7 +375,7 @@ function ensurePanelButton(panel) {
       btn.disabled = false;
       btn.textContent = "⚠️ Error — Retry";
       if (result.error && (result.error.includes("সাবস্ক্রিপশন") || result.error.includes("এডমিন") || result.error.includes("Admin") || result.error.includes("লগইন"))) {
-        alert("⚠️ এক্সেস সীমাবদ্ধ!\n\n" + result.error + "\n\n(এক্সটেনশন আইকনে ক্লিক করে Google লগইন করুন বা এডমিনের সাথে যোগাযোগ করুন)");
+        alert("⚠️ এক্সেস সীমাবদ্ধ!\n\n" + result.error + "\n\n(এডমিনের সাথে যোগাযোগ করে এক্টিভেশন অনুমোদন নিন)");
       } else {
         alert("Error: " + result.error);
       }
@@ -493,6 +531,16 @@ function updateStatus(text) {
 
 async function runAutoBatch() {
   if (autoRunning) return;
+
+  // Immediate subscription check BEFORE starting batch
+  const sub = await checkSubCached(true);
+  if (!sub || !sub.isValid) {
+    alert("⚠️ এক্সেস সীমাবদ্ধ!\n\n" + (sub?.message || "আপনার একাউন্ট এখনও একটিভ করা হয়নি। এডমিনের অনুমোদনের অপেক্ষায় রয়েছে।"));
+    updateStatus("🔒 একাউন্ট একটিভ নয় — এডমিনের অনুমোদন প্রয়োজন।");
+    refreshControlPanelSub();
+    return;
+  }
+
   autoRunning = true;
   autoStopRequested = false;
   setControlPanelState("running");
@@ -594,7 +642,10 @@ function stopAutoBatch() {
 
 // ================= Floating control panel (Run All / Stop) =================
 function ensureControlPanel() {
-  if (document.querySelector(".ai-batch-panel")) return;
+  if (document.querySelector(".ai-batch-panel")) {
+    refreshControlPanelSub();
+    return;
+  }
 
   const wrap = document.createElement("div");
   wrap.className = "ai-batch-panel";
@@ -608,9 +659,15 @@ function ensureControlPanel() {
   runBtn.type = "button";
   runBtn.textContent = "▶ Auto Run All (Generate + Save)";
   stopEventFromClosingPanel(runBtn);
-  runBtn.addEventListener("click", (e) => {
+  runBtn.addEventListener("click", async (e) => {
     e.stopPropagation();
     e.preventDefault();
+    const sub = await checkSubCached(true);
+    if (!sub || !sub.isValid) {
+      alert("⚠️ এক্সেস সীমাবদ্ধ!\n\n" + (sub?.message || "আপনার একাউন্ট এখনও একটিভ করা হয়নি। এডমিনের অনুমোদনের অপেক্ষায় রয়েছে।"));
+      refreshControlPanelSub();
+      return;
+    }
     runAutoBatch();
   });
 
@@ -618,6 +675,7 @@ function ensureControlPanel() {
   stopBtn.className = "ai-batch-stop";
   stopBtn.type = "button";
   stopBtn.textContent = "⏹ Stop";
+  stopBtn.disabled = true;
   stopEventFromClosingPanel(stopBtn);
   stopBtn.addEventListener("click", (e) => {
     e.stopPropagation();
@@ -634,6 +692,33 @@ function ensureControlPanel() {
   wrap.appendChild(stopBtn);
   wrap.appendChild(status);
   document.body.appendChild(wrap);
+
+  refreshControlPanelSub();
+}
+
+async function refreshControlPanelSub() {
+  const runBtn = document.querySelector(".ai-batch-run");
+  const status = document.querySelector(".ai-batch-status");
+  if (!runBtn || autoRunning) return;
+
+  const sub = await checkSubCached();
+  if (!sub || !sub.isValid) {
+    runBtn.classList.add("locked");
+    runBtn.disabled = true;
+    runBtn.textContent = "🔒 Locked (Pending Approval)";
+    if (status) {
+      status.textContent = "🔒 এডমিনের অনুমোদন প্রয়োজন";
+      status.style.color = "#dc2626";
+    }
+  } else {
+    runBtn.classList.remove("locked");
+    runBtn.disabled = false;
+    runBtn.textContent = "▶ Auto Run All (Generate + Save)";
+    if (status && status.textContent.includes("অনুমোদন প্রয়োজন")) {
+      status.textContent = "Ready";
+      status.style.color = "";
+    }
+  }
 }
 
 function setControlPanelState(state) {
