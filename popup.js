@@ -143,38 +143,62 @@ async function updateAuthUI() {
   }
 }
 
-// Google Sign-In Handler
-$("googleSignInBtn").addEventListener("click", async () => {
-  const emailInput = $("loginEmailInput");
-  const email = emailInput ? emailInput.value.trim() : "";
-
-  if (email) {
-    const btn = $("googleSignInBtn");
-    const originalText = btn.innerHTML;
+// Quick 1-Click Admin Login
+if ($("quickAdminLoginBtn")) {
+  $("quickAdminLoginBtn").addEventListener("click", async () => {
+    const btn = $("quickAdminLoginBtn");
+    const orig = btn.innerHTML;
     btn.disabled = true;
-    btn.innerText = "⏳ Logging in...";
+    btn.innerHTML = "<span>⏳ Logging in as Admin...</span>";
     try {
-      await AuthService.loginWithEmail(email);
+      await AuthService.loginWithEmail(APP_CONFIG.ADMIN_EMAIL || "smrkarim555@gmail.com");
       await updateAuthUI();
     } catch (err) {
-      alert("লগইন এরর: " + err.message);
+      alert("এডমিন লগইন এরর: " + err.message);
     } finally {
       btn.disabled = false;
-      btn.innerHTML = originalText;
+      btn.innerHTML = orig;
     }
+  });
+}
+
+// User Google Sign-In Handler
+$("googleSignInBtn").addEventListener("click", async () => {
+  const emailInput = $("loginEmailInput");
+  const errDiv = $("loginErrorMsg");
+  const email = emailInput ? emailInput.value.trim() : "";
+
+  if (errDiv) errDiv.style.display = "none";
+
+  if (!email) {
+    if (errDiv) {
+      errDiv.innerText = "⚠️ দয়া করে আপনার Gmail অ্যাড্রেসটি লিখুন (যেমন: user@gmail.com)";
+      errDiv.style.display = "block";
+    }
+    if (emailInput) emailInput.focus();
     return;
   }
 
-  // If no email typed, open Google web login page
-  chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
-});
+  const btn = $("googleSignInBtn");
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = "<span>⏳ Connecting to Firebase...</span>";
 
-if ($("openWebLoginLink")) {
-  $("openWebLoginLink").addEventListener("click", (e) => {
-    e.preventDefault();
-    chrome.tabs.create({ url: chrome.runtime.getURL("login.html") });
-  });
-}
+  try {
+    await AuthService.loginWithEmail(email);
+    await updateAuthUI();
+  } catch (err) {
+    if (errDiv) {
+      errDiv.innerText = "লগইন এরর: " + err.message;
+      errDiv.style.display = "block";
+    } else {
+      alert("লগইন এরর: " + err.message);
+    }
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+});
 
 // Auto update UI when storage changes (e.g. login from tab)
 chrome.storage.onChanged.addListener((changes, area) => {
