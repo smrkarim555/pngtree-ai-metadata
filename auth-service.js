@@ -31,80 +31,84 @@ const AuthService = {
     await chrome.storage.local.set({ currentUser: userData });
   },
 
-  // Sign in with Google (Native Chrome Identity)
+  // Sign in with Google (Opens real Google Accounts login page)
   async signInWithGoogle() {
-    const clientId = APP_CONFIG.GOOGLE_CLIENT_ID;
+    return new Promise(async (resolve, reject) => {
+      try {
+        const apiKey = APP_CONFIG.FIREBASE.apiKey;
+        const projectId = APP_CONFIG.FIREBASE.projectId;
+        const continueUri = `https://${projectId}.firebaseapp.com/__/auth/handler`;
 
-    // Check if Google Client ID is configured or in placeholder state
-    const isConfigured =
-      clientId &&
-      !clientId.includes("YOUR_GOOGLE_CLIENT_ID") &&
-      clientId.endsWith(".apps.googleusercontent.com");
-
-    if (!isConfigured) {
-      // If not configured, prompt for email in simple dialog for demo/instant test
-      const testEmail = prompt(
-        "Google OAuth Client ID এখনও auth-config.js-এ বসানো হয়নি।\n\nটেস্ট করার জন্য আপনার Gmail লিখুন (Admin টেস্ট করতে চাইলে আপনার Admin Gmail দিন):",
-        APP_CONFIG.ADMIN_EMAIL || "testuser@gmail.com"
-      );
-      if (!testEmail) throw new Error("লগইন বাতিল করা হয়েছে।");
-
-      const mockName = testEmail.split("@")[0];
-      const mockProfile = {
-        sub: "user_" + Math.random().toString(36).substring(7),
-        email: testEmail.trim().toLowerCase(),
-        name: mockName.charAt(0).toUpperCase() + mockName.slice(1),
-        picture: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(testEmail)}`
-      };
-      return await this.handleUserRecord(mockProfile);
-    }
-
-    // Official Google OAuth 2.0 Web Flow via chrome.identity
-    return new Promise((resolve, reject) => {
-      const redirectUri = chrome.identity.getRedirectURL();
-      const authUrl =
-        `https://accounts.google.com/o/oauth2/v2/auth?` +
-        `client_id=${encodeURIComponent(clientId)}&` +
-        `response_type=token&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `scope=${encodeURIComponent("https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile openid")}`;
-
-      chrome.identity.launchWebAuthFlow(
-        { url: authUrl, interactive: true },
-        async (responseUrl) => {
-          if (chrome.runtime.lastError || !responseUrl) {
-            return reject(
-              new Error(
-                chrome.runtime.lastError?.message ||
-                  "Google Sign-In বাতিল করা হয়েছে।"
-              )
-            );
+        // 1. Get official Google Accounts sign-in URI from Firebase Identity
+        const authUriRes = await fetch(
+          `https://identitytoolkit.googleapis.com/v1/accounts:createAuthUri?key=${apiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              providerId: "google.com",
+              continueUri: continueUri
+            })
           }
+        );
 
-          try {
-            // Extract access_token from responseUrl hash
-            const urlObj = new URL(responseUrl);
-            const params = new URLSearchParams(urlObj.hash.substring(1));
-            const accessToken = params.get("access_token");
-            if (!accessToken) throw new Error("Google access token পাওয়া যায়নি।");
-
-            // Fetch user info from Google
-            const profileRes = await fetch(
-              "https://www.googleapis.com/oauth2/v3/userinfo",
-              {
-                headers: { Authorization: `Bearer ${accessToken}` }
-              }
-            );
-
-            if (!profileRes.ok) throw new Error("Google Profile লোড করা সম্ভব হয়নি।");
-            const profile = await profileRes.json();
-            const user = await AuthService.handleUserRecord(profile);
-            resolve(user);
-          } catch (err) {
-            reject(err);
-          }
+        if (!authUriRes.ok) {
+          throw new Error("Google Login লিংক তৈরি করা যায়নি।");
         }
-      );
+
+        const { authUri } = await authUriRes.json();
+        if (!authUri) throw new Error("Google OAuth URL পাওয়া যায়নি।");
+
+        // 2. Launch Chrome web auth flow - directly opens accounts.google.com!
+        chrome.identity.launchWebAuthFlow(
+          { url: authUri, interactive: true },
+          async (responseUrl) => {
+            if (chrome.runtime.lastError || !responseUrl) {
+              const errMsg = chrome.runtime.lastError?.message || "Google Sign-In বাতিল করা হয়েছে।";
+              return reject(new Error(errMsg));
+            }
+
+            try {
+              // 3. Extract Google id_token from responseUrl
+              const hash = responseUrl.split("#")[1] || "";
+              const search = responseUrl.split("?")[1] || "";
+              const params = new URLSearchParams(hash || search);
+              const idToken = params.get("id_token");
+
+              let profile = null;
+              if (idToken) {
+                // Decode Google JWT payload safely
+                const payloadBase64 = idToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+                const payloadJson = decodeURIComponent(
+                  atob(payloadBase64)
+                    .split("")
+                    .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+                    .join("")
+                );
+                const jwt = JSON.parse(payloadJson);
+                profile = {
+                  sub: jwt.sub,
+                  email: (jwt.email || "").toLowerCase(),
+                  name: jwt.name || jwt.given_name || "User",
+                  picture: jwt.picture || ""
+                };
+              }
+
+              if (!profile || !profile.email) {
+                throw new Error("Google থেকে প্রোফাইল তথ্য পাওয়া যায়নি।");
+              }
+
+              // 4. Save to Firebase Realtime Database
+              const user = await AuthService.handleUserRecord(profile);
+              resolve(user);
+            } catch (err) {
+              reject(err);
+            }
+          }
+        );
+      } catch (err) {
+        reject(err);
+      }
     });
   },
 

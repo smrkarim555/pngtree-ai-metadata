@@ -12,6 +12,7 @@
     "https://accounts.google.com/*",
     "https://www.googleapis.com/*",
     "https://*.firebaseio.com/*",
+    "https://*.firebaseapp.com/*",
     "https://firestore.googleapis.com/*",
     "https://identitytoolkit.googleapis.com/*",
     "https://raw.githubusercontent.com/*",
