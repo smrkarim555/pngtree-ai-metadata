@@ -1,3 +1,6 @@
 ALL_AI_API_KEYS.txt
 .user_uploaded/
 *.log
+node_modules/
+src/
+
