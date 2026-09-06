@@ -63,19 +63,36 @@ function sanitizeKeywords(list) {
 
 // ================= Panel + field discovery =================
 function findOpenPanel() {
-  const headers = Array.from(document.querySelectorAll("*")).filter(
-    (el) =>
-      el.children.length === 0 &&
-      el.textContent &&
-      el.textContent.trim() === "Work details"
-  );
-  for (const h of headers) {
-    let node = h;
+  // Fast path: find work details panel via the title input (O(1) lookup)
+  const titleInput = document.querySelector('input[placeholder*="title of the work" i]');
+  if (titleInput) {
+    let node = titleInput.parentElement;
     for (let i = 0; i < 10 && node; i++) {
-      if (node.querySelector('input[placeholder*="title of the work" i]')) {
+      if (
+        node.classList &&
+        (node.classList.contains("ivu-drawer") ||
+         node.classList.contains("ivu-drawer-wrap") ||
+         node.classList.contains("ivu-modal") ||
+         node.textContent.includes("Work details"))
+      ) {
         return node;
       }
       node = node.parentElement;
+    }
+    return titleInput.closest(".ivu-drawer, .ivu-modal, form, div") || titleInput.parentElement;
+  }
+
+  // Fallback: check only header/title elements instead of entire DOM '*'
+  const headers = document.querySelectorAll(".ivu-drawer-header, .drawer-header, h3, h4, .title");
+  for (const h of headers) {
+    if (h.textContent && h.textContent.trim() === "Work details") {
+      let node = h.parentElement;
+      for (let i = 0; i < 6 && node; i++) {
+        if (node.querySelector('input[placeholder*="title of the work" i]')) {
+          return node;
+        }
+        node = node.parentElement;
+      }
     }
   }
   return null;
@@ -648,9 +665,10 @@ function stopAutoBatch() {
 // ================= Floating control panel (Run All / Stop) =================
 function ensureControlPanel() {
   if (document.querySelector(".ai-batch-panel")) {
-    refreshControlPanelSub();
-    return;
+    return; // Panel already exists, do not re-run refresh on every DOM mutation
   }
+
+  if (!document.body) return;
 
   const wrap = document.createElement("div");
   wrap.className = "ai-batch-panel";
@@ -709,18 +727,27 @@ async function refreshControlPanelSub() {
   if (!runBtn || autoRunning) return;
 
   const sub = await checkSubCached();
-  if (!sub || !sub.isValid) {
-    runBtn.classList.add("locked");
-    runBtn.disabled = true;
-    runBtn.textContent = "🔒 Locked (Pending Approval)";
+  const isValid = !!(sub && sub.isValid);
+
+  if (!isValid) {
+    if (!runBtn.classList.contains("locked")) runBtn.classList.add("locked");
+    if (!runBtn.disabled) runBtn.disabled = true;
+    const lockedText = "🔒 Locked (Pending Approval)";
+    if (runBtn.textContent !== lockedText) runBtn.textContent = lockedText;
+
     if (status) {
-      status.textContent = "🔒 এডমিনের অনুমোদন প্রয়োজন";
-      status.style.color = "#dc2626";
+      const statusText = "🔒 এডমিনের অনুমোদন প্রয়োজন";
+      if (status.textContent !== statusText) status.textContent = statusText;
+      if (status.style.color !== "rgb(220, 38, 38)" && status.style.color !== "#dc2626") {
+        status.style.color = "#dc2626";
+      }
     }
   } else {
-    runBtn.classList.remove("locked");
-    runBtn.disabled = false;
-    runBtn.textContent = "▶ Auto Run All (Generate + Save)";
+    if (runBtn.classList.contains("locked")) runBtn.classList.remove("locked");
+    if (runBtn.disabled) runBtn.disabled = false;
+    const readyText = "▶ Auto Run All (Generate + Save)";
+    if (runBtn.textContent !== readyText) runBtn.textContent = readyText;
+
     if (status && status.textContent.includes("অনুমোদন প্রয়োজন")) {
       status.textContent = "Ready";
       status.style.color = "";
@@ -732,33 +759,75 @@ function setControlPanelState(state) {
   const runBtn = document.querySelector(".ai-batch-run");
   const stopBtn = document.querySelector(".ai-batch-stop");
   if (!runBtn || !stopBtn) return;
+
   if (state === "running") {
-    runBtn.disabled = true;
-    runBtn.classList.add("active");
-    stopBtn.disabled = false;
+    if (!runBtn.disabled) runBtn.disabled = true;
+    if (!runBtn.classList.contains("active")) runBtn.classList.add("active");
+    if (stopBtn.disabled) stopBtn.disabled = false;
   } else {
-    stopBtn.disabled = true;
-    runBtn.classList.remove("active");
+    if (!stopBtn.disabled) stopBtn.disabled = true;
+    if (runBtn.classList.contains("active")) runBtn.classList.remove("active");
+
     if (!cachedSub || !cachedSub.isValid) {
-      runBtn.classList.add("locked");
-      runBtn.disabled = true;
-      runBtn.textContent = "🔒 Locked (Pending Approval)";
+      if (!runBtn.classList.contains("locked")) runBtn.classList.add("locked");
+      if (!runBtn.disabled) runBtn.disabled = true;
+      const lockedText = "🔒 Locked (Pending Approval)";
+      if (runBtn.textContent !== lockedText) runBtn.textContent = lockedText;
     } else {
-      runBtn.classList.remove("locked");
-      runBtn.disabled = false;
-      runBtn.textContent = "▶ Auto Run All (Generate + Save)";
+      if (runBtn.classList.contains("locked")) runBtn.classList.remove("locked");
+      if (runBtn.disabled) runBtn.disabled = false;
+      const readyText = "▶ Auto Run All (Generate + Save)";
+      if (runBtn.textContent !== readyText) runBtn.textContent = readyText;
     }
   }
 }
 
-// ================= Watch DOM =================
-const observer = new MutationObserver(() => {
+// ================= Watch DOM (Debounced & Safe) =================
+let mutationDebounceTimer = null;
+
+function scanAndAttachUI() {
   const panel = findOpenPanel();
   if (panel) ensurePanelButton(panel);
   ensureControlPanel();
-});
-observer.observe(document.body, { childList: true, subtree: true });
+}
 
-ensureControlPanel();
-const initialPanel = findOpenPanel();
-if (initialPanel) ensurePanelButton(initialPanel);
+const observer = new MutationObserver((mutations) => {
+  // Ignore mutations originating entirely from our own extension UI elements
+  let externalChange = false;
+  for (let i = 0; i < mutations.length; i++) {
+    const target = mutations[i].target;
+    if (target && target.closest && (target.closest(".ai-batch-panel") || target.closest(".ai-meta-btn"))) {
+      continue;
+    }
+    externalChange = true;
+    break;
+  }
+  if (!externalChange) return;
+
+  if (mutationDebounceTimer) clearTimeout(mutationDebounceTimer);
+  mutationDebounceTimer = setTimeout(scanAndAttachUI, 300);
+});
+
+function initObserver() {
+  if (!document.body) return;
+  observer.observe(document.body, { childList: true, subtree: true });
+  scanAndAttachUI();
+  // Poll subscription status in background every 15 seconds
+  setInterval(refreshControlPanelSub, 15000);
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initObserver);
+} else {
+  initObserver();
+}
+
+// Listen for refresh messages from popup/background
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "refreshSub") {
+    checkSubCached(true).then(() => {
+      refreshControlPanelSub();
+    });
+    sendResponse({ ok: true });
+  }
+});
