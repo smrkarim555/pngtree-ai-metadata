@@ -1,0 +1,46 @@
+{
+  "manifest_version": 3,
+  "name": "Pngtree AI Metadata Filler",
+  "version": "1.0.0",
+  "description": "Gemini/Groq/Mistral vision AI diye Pngtree upload panel-e Title, Main keywords, Secondary keywords auto-fill kore.",
+  "permissions": ["storage", "activeTab", "scripting", "identity"],
+  "host_permissions": [
+    "https://*.pngtree.com/*",
+    "https://api.groq.com/*",
+    "https://api.mistral.ai/*",
+    "https://generativelanguage.googleapis.com/*",
+    "https://accounts.google.com/*",
+    "https://www.googleapis.com/*",
+    "https://*.firebaseio.com/*",
+    "https://firestore.googleapis.com/*",
+    "https://identitytoolkit.googleapis.com/*",
+    "https://raw.githubusercontent.com/*",
+    "https://api.github.com/*"
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://upload.pngtree.com/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  }
+}

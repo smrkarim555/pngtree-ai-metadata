@@ -1,0 +1,423 @@
+const $ = (id) => document.getElementById(id);
+
+const DEFAULT_AI_PLATFORM_URL = "https://ideogram.ai";
+
+function normalizeUrl(raw) {
+  const v = (raw || "").trim();
+  if (!v) return "";
+  if (/^https?:\/\//i.test(v)) return v;
+  return "https://" + v;
+}
+
+// ================= Vision Provider segmented switch =================
+function setProvider(value) {
+  const isGroq = value === "groq";
+  const isMistral = value === "mistral";
+  const isGemini = value === "gemini";
+
+  $("btnGroq").classList.toggle("active", isGroq);
+  $("btnMistral").classList.toggle("active", isMistral);
+  $("btnGemini").classList.toggle("active", isGemini);
+
+  $("panelGroq").classList.toggle("active", isGroq);
+  $("panelMistral").classList.toggle("active", isMistral);
+  $("panelGemini").classList.toggle("active", isGemini);
+}
+
+$("btnGroq").addEventListener("click", () => setProvider("groq"));
+$("btnMistral").addEventListener("click", () => setProvider("mistral"));
+$("btnGemini").addEventListener("click", () => setProvider("gemini"));
+
+// ================= Custom model input toggles =================
+function setupDropdownCustomToggle(selectId, customInputId) {
+  $(selectId).addEventListener("change", (e) => {
+    const isCustom = e.target.value === "custom";
+    $(customInputId).style.display = isCustom ? "block" : "none";
+    if (isCustom) $(customInputId).focus();
+  });
+}
+
+setupDropdownCustomToggle("groqModelSelect", "groqModelCustom");
+setupDropdownCustomToggle("mistralModelSelect", "mistralModelCustom");
+setupDropdownCustomToggle("geminiModelSelect", "geminiModelCustom");
+
+function syncDropdownValue(selectId, customInputId, value, standardList, defaultVal) {
+  const finalVal = value || defaultVal;
+  if (standardList.includes(finalVal)) {
+    $(selectId).value = finalVal;
+    $(customInputId).style.display = "none";
+    $(customInputId).value = "";
+  } else {
+    $(selectId).value = "custom";
+    $(customInputId).style.display = "block";
+    $(customInputId).value = finalVal;
+  }
+}
+
+function getDropdownFinalValue(selectId, customInputId, defaultVal) {
+  const sel = $(selectId).value;
+  if (sel === "custom") {
+    return $(customInputId).value.trim() || defaultVal;
+  }
+  return sel;
+}
+
+// ================= External Links =================
+document.querySelectorAll(".get-key-link").forEach((link) => {
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    if (chrome.tabs && chrome.tabs.create) {
+      chrome.tabs.create({ url: link.href });
+    } else {
+      window.open(link.href, "_blank");
+    }
+  });
+});
+
+// ================= Password show/hide =================
+document.querySelectorAll(".toggle-visibility").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const target = $(btn.dataset.target);
+    const showing = target.type === "text";
+    target.type = showing ? "password" : "text";
+    btn.textContent = showing ? "👁" : "🙈";
+  });
+});
+
+// ================= Authentication & 1-Month Subscription UI =================
+let allUsersCache = [];
+
+async function updateAuthUI() {
+  const sub = await AuthService.checkSubscriptionStatus();
+  const loggedOutView = $("loggedOutView");
+  const loggedInView = $("loggedInView");
+  const adminCard = $("adminCard");
+
+  if (!sub.user) {
+    loggedOutView.style.display = "block";
+    loggedInView.style.display = "none";
+    adminCard.classList.remove("show");
+    return;
+  }
+
+  // User is logged in
+  loggedOutView.style.display = "none";
+  loggedInView.style.display = "block";
+
+  $("userName").textContent = sub.user.name || "User";
+  $("userEmail").textContent = sub.user.email || "";
+  $("userAvatar").src =
+    sub.user.picture ||
+    `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(sub.user.email || "user")}`;
+
+  const badge = $("subBadge");
+  const msg = $("subMessage");
+  badge.className = "badge";
+
+  if (sub.isAdmin) {
+    badge.classList.add("badge-admin");
+    badge.textContent = "👑 Admin (Unlimited)";
+    msg.textContent = "এডমিন একাউন্ট সক্রিয় রয়েছে। আপনি যেকোনো ইউজারকে একটিভ করতে পারবেন।";
+    adminCard.classList.add("show");
+    loadAdminUsers();
+  } else if (sub.status === "active") {
+    badge.classList.add("badge-active");
+    badge.textContent = `✅ Active (${sub.daysLeft} দিন বাকি)`;
+    msg.textContent = `আপনার ১ মাসের সাবস্ক্রিপশন চালু আছে। মেয়াদ বাকি: ${sub.daysLeft} দিন।`;
+    adminCard.classList.remove("show");
+  } else if (sub.status === "expired") {
+    badge.classList.add("badge-expired");
+    badge.textContent = "❌ Expired";
+    msg.textContent = "আপনার ১ মাসের মেয়াদ শেষ হয়েছে। রিনিউ করতে এডমিনের সাথে যোগাযোগ করুন।";
+    adminCard.classList.remove("show");
+  } else if (sub.status === "blocked") {
+    badge.classList.add("badge-blocked");
+    badge.textContent = "⛔ Blocked";
+    msg.textContent = "আপনার একাউন্ট সাময়িকভাবে বন্ধ করা হয়েছে।";
+    adminCard.classList.remove("show");
+  } else {
+    badge.classList.add("badge-pending");
+    badge.textContent = "⏳ Pending Approval";
+    msg.textContent = "আপনার একাউন্ট এখনও একটিভ করা হয়নি। এডমিনের অনুমোদনের অপেক্ষায় রয়েছে।";
+    adminCard.classList.remove("show");
+  }
+}
+
+// Google Sign-In Handler
+$("googleSignInBtn").addEventListener("click", async () => {
+  const btn = $("googleSignInBtn");
+  const originalText = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerText = "⏳ Logging in...";
+
+  try {
+    await AuthService.signInWithGoogle();
+    await updateAuthUI();
+  } catch (err) {
+    alert("লগইন এরর: " + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalText;
+  }
+});
+
+// Sign-Out Handler
+$("signOutBtn").addEventListener("click", async () => {
+  if (confirm("আপনি কি নিশ্চিত লগআউট করতে চান?")) {
+    await AuthService.signOut();
+    await updateAuthUI();
+  }
+});
+
+// ================= Admin Panel Logic =================
+async function loadAdminUsers() {
+  const listEl = $("adminUserList");
+  listEl.innerHTML = "<div style='text-align:center; padding:10px; color:#888;'>ইউজার লিস্ট লোড হচ্ছে...</div>";
+
+  try {
+    const users = await AuthService.getAllUsers();
+    allUsersCache = users;
+    renderAdminUsers(users);
+  } catch (err) {
+    listEl.innerHTML = `<div style='color:red; padding:6px;'>এরর: ${err.message}</div>`;
+  }
+}
+
+function renderAdminUsers(users) {
+  const listEl = $("adminUserList");
+  listEl.innerHTML = "";
+
+  const query = ($("adminSearchInput").value || "").trim().toLowerCase();
+  const filtered = users.filter((u) =>
+    (u.email || "").toLowerCase().includes(query) ||
+    (u.name || "").toLowerCase().includes(query)
+  );
+
+  if (filtered.length === 0) {
+    listEl.innerHTML = "<div style='text-align:center; padding:10px; color:#888;'>কোনো ইউজার পাওয়া যায়নি।</div>";
+    return;
+  }
+
+  filtered.forEach((u) => {
+    const item = document.createElement("div");
+    item.className = "user-item";
+
+    let statusClass = "badge-pending";
+    let statusText = "Pending";
+    let daysLeftText = "";
+
+    if (u.role === "admin") {
+      statusClass = "badge-admin";
+      statusText = "Admin";
+    } else if (u.status === "blocked") {
+      statusClass = "badge-blocked";
+      statusText = "Blocked";
+    } else if (u.status === "active" && u.subscriptionExpiresAt > Date.now()) {
+      statusClass = "badge-active";
+      const days = Math.max(1, Math.ceil((u.subscriptionExpiresAt - Date.now()) / (1000 * 60 * 60 * 24)));
+      statusText = `Active (${days}d)`;
+      daysLeftText = `মেয়াদ: ${new Date(u.subscriptionExpiresAt).toLocaleDateString()}`;
+    } else if (u.subscriptionExpiresAt && u.subscriptionExpiresAt <= Date.now()) {
+      statusClass = "badge-expired";
+      statusText = "Expired";
+      daysLeftText = `মেয়াদ শেষ: ${new Date(u.subscriptionExpiresAt).toLocaleDateString()}`;
+    } else {
+      statusClass = "badge-pending";
+      statusText = "Pending";
+    }
+
+    item.innerHTML = `
+      <div class="user-item-header">
+        <span class="user-item-email" title="${u.email}">${u.email}</span>
+        <span class="badge ${statusClass}">${statusText}</span>
+      </div>
+      <div class="user-item-details">
+        <span>নাম: ${u.name || "N/A"}</span> ${daysLeftText ? `• <span>${daysLeftText}</span>` : ""}
+      </div>
+      ${
+        u.role === "admin"
+          ? ""
+          : `
+        <div class="user-actions">
+          <button class="act-btn act-activate" data-email="${u.email}">⚡ Activate 1 Month</button>
+          <button class="act-btn act-extend" data-email="${u.email}">➕ +30 Days</button>
+          <button class="act-btn act-block" data-email="${u.email}">⛔ Block</button>
+        </div>
+      `
+      }
+    `;
+
+    // Bind action events
+    const actBtn = item.querySelector(".act-activate");
+    if (actBtn) {
+      actBtn.addEventListener("click", async () => {
+        actBtn.disabled = true;
+        actBtn.textContent = "⏳...";
+        await AuthService.activateUserOneMonth(u.email);
+        await loadAdminUsers();
+      });
+    }
+
+    const extendBtn = item.querySelector(".act-extend");
+    if (extendBtn) {
+      extendBtn.addEventListener("click", async () => {
+        extendBtn.disabled = true;
+        extendBtn.textContent = "⏳...";
+        await AuthService.activateUserOneMonth(u.email);
+        await loadAdminUsers();
+      });
+    }
+
+    const blockBtn = item.querySelector(".act-block");
+    if (blockBtn) {
+      blockBtn.addEventListener("click", async () => {
+        if (confirm(`${u.email}-কে সাময়িক ব্লক করতে চান?`)) {
+          blockBtn.disabled = true;
+          blockBtn.textContent = "⏳...";
+          await AuthService.deactivateUser(u.email);
+          await loadAdminUsers();
+        }
+      });
+    }
+
+    listEl.appendChild(item);
+  });
+}
+
+$("adminRefreshBtn").addEventListener("click", loadAdminUsers);
+$("adminSearchInput").addEventListener("input", () => renderAdminUsers(allUsersCache));
+
+// ================= GitHub Auto-Update Check =================
+async function checkUpdateBanner() {
+  try {
+    const update = await AuthService.checkGitHubUpdate();
+    if (update && update.hasUpdate) {
+      const banner = $("updateBanner");
+      const verText = $("updateVersion");
+      const link = $("updateLink");
+      verText.textContent = `v${update.latestVersion}`;
+      if (update.releaseUrl) link.href = update.releaseUrl;
+      banner.style.display = "flex";
+    }
+  } catch (e) {
+    console.warn("Update check failed:", e);
+  }
+}
+
+// ================= Load Saved Settings =================
+async function load() {
+  const s = await chrome.storage.local.get([
+    "provider", "groqKey", "groqModel", "mistralKey", "mistralModel",
+    "geminiKey", "geminiModel", "aiPlatformUrl",
+  ]);
+
+  const provider = s.provider || "gemini";
+  setProvider(provider);
+
+  $("groqKey").value = s.groqKey || "";
+  const groqStandards = [
+    "meta-llama/llama-4-scout-17b-16e-instruct",
+    "llama-3.2-90b-vision-preview",
+    "llama-3.2-11b-vision-preview",
+  ];
+  syncDropdownValue(
+    "groqModelSelect",
+    "groqModelCustom",
+    s.groqModel,
+    groqStandards,
+    "meta-llama/llama-4-scout-17b-16e-instruct"
+  );
+
+  $("mistralKey").value = s.mistralKey || "";
+  const mistralStandards = [
+    "pixtral-large-latest",
+    "pixtral-12b-2409",
+  ];
+  syncDropdownValue(
+    "mistralModelSelect",
+    "mistralModelCustom",
+    s.mistralModel,
+    mistralStandards,
+    "pixtral-large-latest"
+  );
+
+  $("geminiKey").value = s.geminiKey || "";
+  const geminiStandards = [
+    "gemini-3.1-flash-lite",
+    "gemini-3.5-flash-lite",
+    "gemini-3.8-flash",
+  ];
+  syncDropdownValue(
+    "geminiModelSelect",
+    "geminiModelCustom",
+    s.geminiModel,
+    geminiStandards,
+    "gemini-3.1-flash-lite"
+  );
+
+  $("aiPlatformUrl").value = s.aiPlatformUrl || DEFAULT_AI_PLATFORM_URL;
+
+  // Initialize Auth & Updates
+  await updateAuthUI();
+  await checkUpdateBanner();
+}
+
+// ================= Save Settings =================
+let saveResetTimer = null;
+
+$("save").addEventListener("click", async () => {
+  let activeProvider = "gemini";
+  if ($("btnGroq").classList.contains("active")) activeProvider = "groq";
+  else if ($("btnMistral").classList.contains("active")) activeProvider = "mistral";
+  else if ($("btnGemini").classList.contains("active")) activeProvider = "gemini";
+
+  const normalizedUrl = normalizeUrl($("aiPlatformUrl").value) || DEFAULT_AI_PLATFORM_URL;
+  $("aiPlatformUrl").value = normalizedUrl;
+
+  const groqModelFinal = getDropdownFinalValue(
+    "groqModelSelect",
+    "groqModelCustom",
+    "meta-llama/llama-4-scout-17b-16e-instruct"
+  );
+  const mistralModelFinal = getDropdownFinalValue(
+    "mistralModelSelect",
+    "mistralModelCustom",
+    "pixtral-large-latest"
+  );
+  const geminiModelFinal = getDropdownFinalValue(
+    "geminiModelSelect",
+    "geminiModelCustom",
+    "gemini-3.1-flash-lite"
+  );
+
+  await chrome.storage.local.set({
+    provider: activeProvider,
+    groqKey: $("groqKey").value.trim(),
+    groqModel: groqModelFinal,
+    mistralKey: $("mistralKey").value.trim(),
+    mistralModel: mistralModelFinal,
+    geminiKey: $("geminiKey").value.trim(),
+    geminiModel: geminiModelFinal,
+    aiPlatformUrl: normalizedUrl,
+  });
+
+  const btn = $("save");
+  const label = $("saveLabel");
+  const icon = $("saveIcon");
+  btn.classList.add("saved");
+  icon.textContent = "✅";
+  label.textContent = "Saved!";
+
+  const status = $("status");
+  status.classList.add("show");
+
+  clearTimeout(saveResetTimer);
+  saveResetTimer = setTimeout(() => {
+    btn.classList.remove("saved");
+    icon.textContent = "💾";
+    label.textContent = "Save Settings";
+    status.classList.remove("show");
+  }, 1800);
+});
+
+load();
