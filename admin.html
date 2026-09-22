@@ -480,8 +480,8 @@
           </div>
           ${isUserAdmin ? '' : `
             <div class="action-row">
-              <button class="act-btn btn-act" data-email="${u.email}">⚡ 30d Active</button>
-              <button class="act-btn btn-ext" data-email="${u.email}">➕ +30d</button>
+              <button class="act-btn btn-act" data-email="${u.email}">⚡ +30d</button>
+              <button class="act-btn btn-custom" data-email="${u.email}" style="background:#0d9488; color:#fff;" title="নিজের ইচ্ছামতো দিন দিন">📅 Custom Days</button>
               <button class="act-btn btn-reset-dev" data-email="${u.email}" title="Unbind device so user can bind new PC">🔄 Reset Device</button>
               <button class="act-btn btn-blk" data-email="${u.email}">⛔ Block</button>
               <button class="act-btn btn-del" data-email="${u.email}" title="Delete User">🗑️</button>
@@ -496,19 +496,27 @@
             actBtn.disabled = true;
             actBtn.textContent = "⏳...";
             await updateUserSubscription(u.email, 30);
-            showToast(`✅ ${u.email} activated for 1 month!`);
+            showToast(`✅ ${u.email} activated for 30 days!`);
             await loadUsers();
           });
         }
 
-        const extBtn = card.querySelector(".btn-ext");
-        if (extBtn) {
-          extBtn.addEventListener("click", async () => {
-            extBtn.disabled = true;
-            extBtn.textContent = "⏳...";
-            await updateUserSubscription(u.email, 30);
-            showToast(`✅ ${u.email} extended by 30 days!`);
-            await loadUsers();
+        const customBtn = card.querySelector(".btn-custom");
+        if (customBtn) {
+          customBtn.addEventListener("click", async () => {
+            const daysInput = prompt(`কত দিন সাবস্ক্রিপশন দিতে চান (${u.email}) এর জন্য?\n(যেমন: 7, 15, 30, 60, 90, 365)`, "30");
+            if (daysInput !== null) {
+              const d = parseInt(daysInput.trim(), 10);
+              if (isNaN(d) || d <= 0) {
+                alert("দয়া করে সঠিক দিন সংখ্যা লিখুন (যেমন: 7, 15, 30)");
+                return;
+              }
+              customBtn.disabled = true;
+              customBtn.textContent = "⏳...";
+              await updateUserSubscription(u.email, d);
+              showToast(`✅ ${u.email} কে ${d} দিন মেয়াদ দেওয়া হয়েছে!`);
+              await loadUsers();
+            }
           });
         }
 

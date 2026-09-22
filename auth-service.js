@@ -377,8 +377,8 @@ const AuthService = {
     return Object.values(usersMap).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   },
 
-  // Admin function: Activate user for 1 month (30 days)
-  async activateUserOneMonth(targetEmail) {
+  // Admin function: Activate or extend user for specified days (default: 30)
+  async activateUserOneMonth(targetEmail, customDays = 30) {
     const currentUser = await this.getCurrentUser();
     if (!this.isAdmin(currentUser?.email)) {
       throw new Error("Only administrators can activate users.");
@@ -390,7 +390,7 @@ const AuthService = {
       createdAt: Date.now()
     };
 
-    const days = APP_CONFIG.SUBSCRIPTION_DAYS || 30;
+    const days = parseInt(customDays, 10) || APP_CONFIG.SUBSCRIPTION_DAYS || 30;
     const durationMs = days * 24 * 60 * 60 * 1000;
 
     // If existing expiry is still in future, extend from that date; else from now

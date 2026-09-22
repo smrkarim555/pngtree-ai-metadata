@@ -299,8 +299,8 @@ function renderAdminUsers(users) {
           ? ""
           : `
         <div class="user-actions" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">
-          <button class="act-btn act-activate" data-email="${u.email}">⚡ 30 Days</button>
-          <button class="act-btn act-extend" data-email="${u.email}">➕ +30d</button>
+          <button class="act-btn act-activate" data-email="${u.email}">⚡ +30d</button>
+          <button class="act-btn act-custom" data-email="${u.email}" style="background:#0d9488;color:#fff;" title="Add custom days (e.g. 7, 15, 60, 90)">📅 Custom Days</button>
           <button class="act-btn act-reset-device" data-email="${u.email}" style="background:#0284c7;color:#fff;" title="Unbind device so user can connect another device">🔄 Reset Device</button>
           <button class="act-btn act-block" data-email="${u.email}">⛔ Block</button>
           <button class="act-btn act-delete" data-email="${u.email}" style="background:#ef4444;color:#fff;" title="Delete User">🗑️</button>
@@ -315,18 +315,26 @@ function renderAdminUsers(users) {
       actBtn.addEventListener("click", async () => {
         actBtn.disabled = true;
         actBtn.textContent = "⏳...";
-        await AuthService.activateUserOneMonth(u.email);
+        await AuthService.activateUserOneMonth(u.email, 30);
         await loadAdminUsers();
       });
     }
 
-    const extendBtn = item.querySelector(".act-extend");
-    if (extendBtn) {
-      extendBtn.addEventListener("click", async () => {
-        extendBtn.disabled = true;
-        extendBtn.textContent = "⏳...";
-        await AuthService.activateUserOneMonth(u.email);
-        await loadAdminUsers();
+    const customBtn = item.querySelector(".act-custom");
+    if (customBtn) {
+      customBtn.addEventListener("click", async () => {
+        const input = prompt(`How many days do you want to add for ${u.email}?\n(e.g. 7, 15, 30, 60, 90, 365):`, "30");
+        if (input !== null) {
+          const days = parseInt(input.trim(), 10);
+          if (isNaN(days) || days <= 0) {
+            alert("Please enter a valid positive number of days (e.g. 15, 30).");
+            return;
+          }
+          customBtn.disabled = true;
+          customBtn.textContent = "⏳...";
+          await AuthService.activateUserOneMonth(u.email, days);
+          await loadAdminUsers();
+        }
       });
     }
 
