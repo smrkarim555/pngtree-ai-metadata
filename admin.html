@@ -78,42 +78,8 @@
     }
     .refresh-btn:active { transform: scale(0.96); }
 
-    /* ---------- PIN Auth View ---------- */
-    #authView {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 24px 20px;
-      text-align: center;
-      box-shadow: var(--shadow);
-      margin-top: 40px;
-    }
-    .pin-input {
-      width: 100%;
-      padding: 12px;
-      font-size: 18px;
-      text-align: center;
-      letter-spacing: 4px;
-      border: 1.5px solid var(--border);
-      border-radius: 10px;
-      margin: 16px 0;
-      outline: none;
-    }
-    .pin-input:focus { border-color: var(--primary); }
-    .login-btn {
-      width: 100%;
-      padding: 12px;
-      background: linear-gradient(135deg, #16a34a, #22c55e);
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-    }
-
     /* ---------- Admin Dashboard View ---------- */
-    #dashboardView { display: none; }
+    #dashboardView { display: block; }
 
     .stats-row {
       display: grid;
@@ -280,19 +246,7 @@
     </div>
     <button id="refreshBtn" class="refresh-btn" type="button">🔄 Refresh</button>
   </div>
-
-  <!-- PIN Protection Screen -->
-  <div id="authView">
-    <div style="font-size: 36px; margin-bottom: 8px;">🔐</div>
-    <h2>Admin Verification</h2>
-    <p style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">
-      Enter your Admin PIN to manage users from mobile
-    </p>
-    <input id="pinInput" class="pin-input" type="password" maxlength="6" placeholder="••••" autocomplete="off" />
-    <button id="pinSubmitBtn" class="login-btn" type="button">Login</button>
-    <p style="font-size: 10.5px; color: #94a3b8; margin-top: 10px;">Default PIN: 5555</p>
-  </div>
-
+  
   <!-- Mobile Dashboard Screen -->
   <div id="dashboardView">
 
@@ -339,13 +293,9 @@
 
   <script>
     const FIREBASE_DB_URL = "https://pngtree-meta-default-rtdb.firebaseio.com";
-    const ADMIN_PIN = "5555"; // Set your secret PIN here
     const ADMIN_EMAIL = "smrkarim555@gmail.com";
 
-    const authView = document.getElementById("authView");
     const dashboardView = document.getElementById("dashboardView");
-    const pinInput = document.getElementById("pinInput");
-    const pinSubmitBtn = document.getElementById("pinSubmitBtn");
     const refreshBtn = document.getElementById("refreshBtn");
     const userListContainer = document.getElementById("userListContainer");
     const searchBox = document.getElementById("searchBox");
@@ -360,30 +310,8 @@
       setTimeout(() => toast.classList.remove("show"), 2400);
     }
 
-    // Check saved auth
-    if (localStorage.getItem("admin_authenticated") === "true") {
-      authView.style.display = "none";
-      dashboardView.style.display = "block";
-      loadUsers();
-    }
-
-    pinSubmitBtn.addEventListener("click", () => {
-      if (pinInput.value.trim() === ADMIN_PIN) {
-        localStorage.setItem("admin_authenticated", "true");
-        authView.style.display = "none";
-        dashboardView.style.display = "block";
-        loadUsers();
-        showToast("Welcome Admin!");
-      } else {
-        alert("Invalid PIN! Please enter correct PIN. (Default: 5555)");
-        pinInput.value = "";
-        pinInput.focus();
-      }
-    });
-
-    pinInput.addEventListener("keyup", (e) => {
-      if (e.key === "Enter") pinSubmitBtn.click();
-    });
+    // Load users immediately on page open
+    loadUsers();
 
     async function loadUsers() {
       userListContainer.innerHTML = "<div style='text-align: center; color: #888; padding: 20px;'>Loading from database...</div>";
