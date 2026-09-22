@@ -732,11 +732,16 @@ async function refreshControlPanelSub() {
   if (!isValid) {
     if (!runBtn.classList.contains("locked")) runBtn.classList.add("locked");
     if (!runBtn.disabled) runBtn.disabled = true;
-    const lockedText = "🔒 Locked (Pending Approval)";
+    const isDeviceMismatch = sub && sub.status === "device_mismatch";
+    const lockedText = isDeviceMismatch
+      ? "🔒 Locked (Another Device)"
+      : "🔒 Locked (Pending Approval)";
     if (runBtn.textContent !== lockedText) runBtn.textContent = lockedText;
 
     if (status) {
-      const statusText = "🔒 Admin approval required";
+      const statusText = isDeviceMismatch
+        ? "🔒 Device Locked — 1 Device per Account"
+        : "🔒 Admin approval required";
       if (status.textContent !== statusText) status.textContent = statusText;
       if (status.style.color !== "rgb(220, 38, 38)" && status.style.color !== "#dc2626") {
         status.style.color = "#dc2626";

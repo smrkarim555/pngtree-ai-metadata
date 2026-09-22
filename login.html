@@ -164,6 +164,8 @@
             picture: u.photoURL || "",
             role: isAdmin ? "admin" : "user",
             status: isAdmin ? "active" : "pending",
+            boundDeviceId: null,
+            boundDeviceAt: null,
             activatedAt: isAdmin ? Date.now() : null,
             subscriptionExpiresAt: isAdmin ? Date.now() + 3650 * 86400000 : null,
             createdAt: Date.now(),

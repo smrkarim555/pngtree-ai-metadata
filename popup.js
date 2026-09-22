@@ -120,6 +120,11 @@ async function updateAuthUI() {
     msg.textContent = "Admin account active. You can activate and manage any user.";
     adminCard.classList.add("show");
     loadAdminUsers();
+  } else if (sub.status === "device_mismatch") {
+    badge.classList.add("badge-blocked");
+    badge.textContent = "🔒 Device Locked";
+    msg.textContent = "⚠️ This account is registered on another device. Only 1 device allowed per account. Contact admin to reset your device.";
+    adminCard.classList.remove("show");
   } else if (sub.status === "active") {
     badge.classList.add("badge-active");
     badge.textContent = `✅ Active (${sub.daysLeft} days left)`;
@@ -140,6 +145,28 @@ async function updateAuthUI() {
     badge.textContent = "⏳ Pending Approval";
     msg.textContent = "Your account is pending activation. Waiting for admin approval.";
     adminCard.classList.remove("show");
+  }
+
+  // Update device badge
+  const devBadge = $("deviceBadge");
+  if (devBadge) {
+    if (sub.isAdmin) {
+      devBadge.textContent = "👑 Any Device (Admin)";
+      devBadge.style.background = "#e0e7ff";
+      devBadge.style.color = "#4338ca";
+    } else if (sub.status === "device_mismatch") {
+      devBadge.textContent = "❌ Another Device (Blocked)";
+      devBadge.style.background = "#fee2e2";
+      devBadge.style.color = "#dc2626";
+    } else if (sub.user?.boundDeviceId) {
+      devBadge.textContent = "🔒 Bound to this PC";
+      devBadge.style.background = "#dcfce7";
+      devBadge.style.color = "#15803d";
+    } else {
+      devBadge.textContent = "🔓 Not Bound Yet (Will bind on next use)";
+      devBadge.style.background = "#f1f5f9";
+      devBadge.style.color = "#64748b";
+    }
   }
 }
 
@@ -253,6 +280,11 @@ function renderAdminUsers(users) {
       statusText = "Pending";
     }
 
+    const isDeviceLocked = !!u.boundDeviceId;
+    const deviceLabel = isDeviceLocked
+      ? `<span style="color:#0284c7;font-weight:600;">🔒 Device: ${u.boundDeviceId.substring(0, 14)}...</span>`
+      : `<span style="color:#64748b;">🔓 Device: Unbound</span>`;
+
     item.innerHTML = `
       <div class="user-item-header">
         <span class="user-item-email" title="${u.email}">${u.email}</span>
@@ -260,15 +292,18 @@ function renderAdminUsers(users) {
       </div>
       <div class="user-item-details">
         <span>Name: ${u.name || "N/A"}</span> ${daysLeftText ? `• <span>${daysLeftText}</span>` : ""}
+        <div style="font-size:10.5px; margin-top:2px;">${deviceLabel}</div>
       </div>
       ${
         u.role === "admin"
           ? ""
           : `
-        <div class="user-actions">
-          <button class="act-btn act-activate" data-email="${u.email}">⚡ Activate 1 Month</button>
-          <button class="act-btn act-extend" data-email="${u.email}">➕ +30 Days</button>
+        <div class="user-actions" style="display:flex; flex-wrap:wrap; gap:4px; margin-top:6px;">
+          <button class="act-btn act-activate" data-email="${u.email}">⚡ 30 Days</button>
+          <button class="act-btn act-extend" data-email="${u.email}">➕ +30d</button>
+          <button class="act-btn act-reset-device" data-email="${u.email}" style="background:#0284c7;color:#fff;" title="Unbind device so user can connect another device">🔄 Reset Device</button>
           <button class="act-btn act-block" data-email="${u.email}">⛔ Block</button>
+          <button class="act-btn act-delete" data-email="${u.email}" style="background:#ef4444;color:#fff;" title="Delete User">🗑️</button>
         </div>
       `
       }
@@ -295,6 +330,18 @@ function renderAdminUsers(users) {
       });
     }
 
+    const resetDevBtn = item.querySelector(".act-reset-device");
+    if (resetDevBtn) {
+      resetDevBtn.addEventListener("click", async () => {
+        if (confirm(`Reset device lock for ${u.email}? This will allow the user to bind a new device/PC.`)) {
+          resetDevBtn.disabled = true;
+          resetDevBtn.textContent = "⏳...";
+          await AuthService.resetUserDevice(u.email);
+          await loadAdminUsers();
+        }
+      });
+    }
+
     const blockBtn = item.querySelector(".act-block");
     if (blockBtn) {
       blockBtn.addEventListener("click", async () => {
@@ -302,6 +349,18 @@ function renderAdminUsers(users) {
           blockBtn.disabled = true;
           blockBtn.textContent = "⏳...";
           await AuthService.deactivateUser(u.email);
+          await loadAdminUsers();
+        }
+      });
+    }
+
+    const delBtn = item.querySelector(".act-delete");
+    if (delBtn) {
+      delBtn.addEventListener("click", async () => {
+        if (confirm(`Are you sure you want to completely DELETE user ${u.email}?`)) {
+          delBtn.disabled = true;
+          delBtn.textContent = "⏳...";
+          await AuthService.deleteUser(u.email);
           await loadAdminUsers();
         }
       });
@@ -451,16 +510,17 @@ async function load() {
 
   $("geminiKey").value = s.geminiKey || "";
   const geminiStandards = [
-    "gemini-3.1-flash-lite",
-    "gemini-3.5-flash-lite",
-    "gemini-3.8-flash",
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro",
   ];
   syncDropdownValue(
     "geminiModelSelect",
     "geminiModelCustom",
     s.geminiModel,
     geminiStandards,
-    "gemini-3.1-flash-lite"
+    "gemini-2.5-flash"
   );
 
   $("aiPlatformUrl").value = s.aiPlatformUrl || DEFAULT_AI_PLATFORM_URL;
@@ -495,7 +555,7 @@ $("save").addEventListener("click", async () => {
   const geminiModelFinal = getDropdownFinalValue(
     "geminiModelSelect",
     "geminiModelCustom",
-    "gemini-3.1-flash-lite"
+    "gemini-2.5-flash"
   );
 
   await chrome.storage.local.set({

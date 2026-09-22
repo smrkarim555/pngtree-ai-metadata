@@ -20,6 +20,29 @@ const AuthService = {
     );
   },
 
+  // Get or create unique persistent Device ID for this browser/PC
+  async getDeviceId() {
+    try {
+      if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
+        const res = await chrome.storage.local.get(["deviceId"]);
+        if (res && res.deviceId) return res.deviceId;
+        const newId = "dev_" + Math.random().toString(36).substring(2, 10) + "_" + Date.now().toString(36);
+        await chrome.storage.local.set({ deviceId: newId });
+        return newId;
+      }
+    } catch (e) {}
+    // Fallback if chrome.storage is not available (e.g. standalone web page)
+    if (typeof localStorage !== "undefined") {
+      let id = localStorage.getItem("ext_device_id");
+      if (!id) {
+        id = "dev_" + Math.random().toString(36).substring(2, 10) + "_" + Date.now().toString(36);
+        localStorage.setItem("ext_device_id", id);
+      }
+      return id;
+    }
+    return "dev_default";
+  },
+
   // Get current logged-in user from local storage
   async getCurrentUser() {
     const res = await chrome.storage.local.get(["currentUser", "allUsersMock"]);
@@ -285,6 +308,27 @@ const AuthService = {
       };
     }
 
+    // 1-Device Lock check for non-admin users
+    const currentDeviceId = await this.getDeviceId();
+    if (!user.boundDeviceId) {
+      // First device usage: automatically lock this device to this account
+      user.boundDeviceId = currentDeviceId;
+      user.boundDeviceAt = Date.now();
+      try {
+        await this.saveUserToDatabase(sanitizeEmailKey(user.email), user);
+        await this.setCurrentUser(user);
+      } catch (e) {}
+    } else if (user.boundDeviceId !== currentDeviceId) {
+      return {
+        isValid: false,
+        status: "device_mismatch",
+        message: "⚠️ Device Locked! This account is registered to another device. Only 1 device is allowed per account. Please contact the administrator to reset your device.",
+        user,
+        boundDeviceId: user.boundDeviceId,
+        currentDeviceId
+      };
+    }
+
     const msLeft = user.subscriptionExpiresAt - now;
     const daysLeft = Math.max(1, Math.ceil(msLeft / (1000 * 60 * 60 * 24)));
 
@@ -292,7 +336,9 @@ const AuthService = {
       isValid: true,
       status: "active",
       daysLeft,
-      user
+      user,
+      boundDeviceId: user.boundDeviceId || currentDeviceId,
+      currentDeviceId
     };
   },
 
@@ -377,6 +423,45 @@ const AuthService = {
 
     await this.saveUserToDatabase(sanitizedKey, existing);
     return existing;
+  },
+
+  // Admin function: Reset bound device for a user (allowing them to bind a new PC)
+  async resetUserDevice(targetEmail) {
+    const currentUser = await this.getCurrentUser();
+    if (!this.isAdmin(currentUser?.email)) {
+      throw new Error("Only administrators can reset user devices.");
+    }
+
+    const sanitizedKey = sanitizeEmailKey(targetEmail);
+    const existing = await this.fetchUserFromDatabase(sanitizedKey);
+    if (!existing) throw new Error("User not found.");
+
+    existing.boundDeviceId = null;
+    existing.boundDeviceAt = null;
+
+    await this.saveUserToDatabase(sanitizedKey, existing);
+    return existing;
+  },
+
+  // Admin function: Delete a user completely
+  async deleteUser(targetEmail) {
+    const currentUser = await this.getCurrentUser();
+    if (!this.isAdmin(currentUser?.email)) {
+      throw new Error("Only administrators can delete users.");
+    }
+
+    const sanitizedKey = sanitizeEmailKey(targetEmail);
+    const fb = APP_CONFIG.FIREBASE;
+    if (fb && fb.databaseURL && !fb.databaseURL.includes("your-firebase-project-id")) {
+      try {
+        const url = `${fb.databaseURL.replace(/\/$/, "")}/users/${sanitizedKey}.json`;
+        await fetch(url, { method: "DELETE" });
+      } catch (e) {}
+    }
+    const localStore = (await chrome.storage.local.get(["allUsersMock"])).allUsersMock || {};
+    delete localStore[sanitizedKey];
+    await chrome.storage.local.set({ allUsersMock: localStore });
+    return true;
   },
 
   // Logout

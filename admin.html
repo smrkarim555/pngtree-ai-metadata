@@ -219,12 +219,13 @@
     }
 
     .action-row {
-      display: grid;
-      grid-template-columns: 1.4fr 1fr 1fr;
+      display: flex;
+      flex-wrap: wrap;
       gap: 6px;
+      margin-top: 10px;
     }
     .act-btn {
-      padding: 9px 4px;
+      padding: 8px 10px;
       border-radius: 8px;
       font-size: 11px;
       font-weight: 700;
@@ -235,11 +236,14 @@
       align-items: center;
       justify-content: center;
       gap: 4px;
+      flex: 1 1 auto;
     }
     .act-btn:active { transform: scale(0.97); }
     .btn-act { background: #16a34a; color: #fff; }
-    .btn-ext { background: #0284c7; color: #fff; }
-    .btn-blk { background: #ef4444; color: #fff; }
+    .btn-ext { background: #0d9488; color: #fff; }
+    .btn-reset-dev { background: #0284c7; color: #fff; }
+    .btn-blk { background: #f59e0b; color: #fff; }
+    .btn-del { background: #ef4444; color: #fff; flex: 0 0 auto; }
 
     /* Toast */
     .toast {
@@ -293,10 +297,10 @@
   <div id="dashboardView">
 
     <!-- Stats -->
-    <div class="stats-row">
+    <div class="stats-row" style="grid-template-columns: repeat(4, 1fr);">
       <div class="stat-card">
         <div class="stat-val" id="totalCount">0</div>
-        <div class="stat-label">Total Users</div>
+        <div class="stat-label">Total</div>
       </div>
       <div class="stat-card">
         <div class="stat-val" style="color: #854d0e;" id="pendingCount">0</div>
@@ -305,6 +309,10 @@
       <div class="stat-card">
         <div class="stat-val" style="color: #15803d;" id="activeCount">0</div>
         <div class="stat-label">Active</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" style="color: #0284c7;" id="lockedCount">0</div>
+        <div class="stat-label">1-Device</div>
       </div>
     </div>
 
@@ -394,10 +402,12 @@
       const total = allUsers.length;
       const pending = allUsers.filter(u => u.role !== "admin" && (u.status === "pending" || !u.subscriptionExpiresAt)).length;
       const active = allUsers.filter(u => u.status === "active" && u.subscriptionExpiresAt > Date.now()).length;
+      const locked = allUsers.filter(u => !!u.boundDeviceId).length;
 
       document.getElementById("totalCount").textContent = total;
       document.getElementById("pendingCount").textContent = pending;
       document.getElementById("activeCount").textContent = active;
+      document.getElementById("lockedCount").textContent = locked;
     }
 
     function renderUsers() {
@@ -454,6 +464,10 @@
         }
 
         const isUserAdmin = u.role === "admin" || u.email === ADMIN_EMAIL;
+        const isDeviceLocked = !!u.boundDeviceId;
+        const deviceBadgeHtml = isDeviceLocked
+          ? `<span style="background: #e0f2fe; color: #0284c7; padding: 2px 7px; border-radius: 6px; font-weight: 600; font-family: monospace; font-size: 10.5px;">🔒 Device: ${u.boundDeviceId.substring(0, 14)}...</span>`
+          : `<span style="background: #f1f5f9; color: #64748b; padding: 2px 7px; border-radius: 6px; font-size: 10.5px;">🔓 Device: Unbound</span>`;
 
         card.innerHTML = `
           <div class="user-card-header">
@@ -462,12 +476,15 @@
           </div>
           <div class="user-meta">
             <span>Name: <strong>${u.name || "N/A"}</strong></span> • <span>${daysInfo}</span>
+            <div style="margin-top: 5px;">${deviceBadgeHtml}</div>
           </div>
           ${isUserAdmin ? '' : `
             <div class="action-row">
-              <button class="act-btn btn-act" data-email="${u.email}">⚡ 1 Month Active</button>
-              <button class="act-btn btn-ext" data-email="${u.email}">➕ +30 Days</button>
+              <button class="act-btn btn-act" data-email="${u.email}">⚡ 30d Active</button>
+              <button class="act-btn btn-ext" data-email="${u.email}">➕ +30d</button>
+              <button class="act-btn btn-reset-dev" data-email="${u.email}" title="Unbind device so user can bind new PC">🔄 Reset Device</button>
               <button class="act-btn btn-blk" data-email="${u.email}">⛔ Block</button>
+              <button class="act-btn btn-del" data-email="${u.email}" title="Delete User">🗑️</button>
             </div>
           `}
         `;
@@ -495,6 +512,19 @@
           });
         }
 
+        const resetDevBtn = card.querySelector(".btn-reset-dev");
+        if (resetDevBtn) {
+          resetDevBtn.addEventListener("click", async () => {
+            if (confirm(`Reset device lock for ${u.email}? This will allow the user to bind a new device/PC.`)) {
+              resetDevBtn.disabled = true;
+              resetDevBtn.textContent = "⏳...";
+              await resetDevice(u.email);
+              showToast(`🔄 Device reset for ${u.email}`);
+              await loadUsers();
+            }
+          });
+        }
+
         const blkBtn = card.querySelector(".btn-blk");
         if (blkBtn) {
           blkBtn.addEventListener("click", async () => {
@@ -503,6 +533,19 @@
               blkBtn.textContent = "⏳...";
               await blockUser(u.email);
               showToast(`⛔ ${u.email} has been blocked!`);
+              await loadUsers();
+            }
+          });
+        }
+
+        const delBtn = card.querySelector(".btn-del");
+        if (delBtn) {
+          delBtn.addEventListener("click", async () => {
+            if (confirm(`Are you sure you want to completely DELETE ${u.email}?`)) {
+              delBtn.disabled = true;
+              delBtn.textContent = "⏳...";
+              await deleteUser(u.email);
+              showToast(`🗑️ User deleted!`);
               await loadUsers();
             }
           });
@@ -533,6 +576,26 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(user)
       });
+    }
+
+    async function resetDevice(email) {
+      const sanitizedKey = email.toLowerCase().replace(/\./g, ",");
+      const url = `${FIREBASE_DB_URL}/users/${sanitizedKey}.json`;
+      const exRes = await fetch(url);
+      const user = await exRes.json() || { email };
+      user.boundDeviceId = null;
+      user.boundDeviceAt = null;
+      await fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(user)
+      });
+    }
+
+    async function deleteUser(email) {
+      const sanitizedKey = email.toLowerCase().replace(/\./g, ",");
+      const url = `${FIREBASE_DB_URL}/users/${sanitizedKey}.json`;
+      await fetch(url, { method: "DELETE" });
     }
 
     async function blockUser(email) {

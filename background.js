@@ -255,7 +255,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           raw = await callMistral(imageDataUrl, s.mistralKey, s.mistralModel || "pixtral-large-latest");
         } else if (provider === "gemini") {
           if (!s.geminiKey) throw new Error("Gemini API key not configured — please save it in the extension popup.");
-          raw = await callGemini(imageDataUrl, s.geminiKey, s.geminiModel || "gemini-3.1-flash-lite");
+          raw = await callGemini(imageDataUrl, s.geminiKey, s.geminiModel || "gemini-2.5-flash");
         }
         const parsed = parseJsonSafe(raw);
         sendResponse({ ok: true, data: parsed });
