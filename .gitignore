@@ -1,3 +1,4 @@
 ALL_AI_API_KEYS.txt
 .user_uploaded/
 *.log
+_source_backup/
